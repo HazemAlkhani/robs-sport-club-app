@@ -10,13 +10,19 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.8
+  # State management
   provider: ^6.0.5
+  # API calls
   http: ^1.2.2
+  # Local storage
   shared_preferences: ^2.1.1
+  # JWT handling
   jwt_decoder: ^2.0.1
+  # Form validation
   form_field_validator: ^1.1.0
+  # Environment variable management
   flutter_dotenv: ^5.0.2
+
 
 dev_dependencies:
   flutter_test:
