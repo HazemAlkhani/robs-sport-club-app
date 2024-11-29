@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'package:robs_sport_club/providers/auth_provider.dart';
 import 'package:robs_sport_club/screens/login_screen.dart';
@@ -7,8 +8,12 @@ import 'package:robs_sport_club/screens/welcome_screen.dart';
 import 'package:robs_sport_club/screens/home_screen.dart';
 import 'package:robs_sport_club/screens/management_screen.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  await dotenv.load(); // Load .env file
+  // Debugging: Print the base URL after loading dotenv
+  print('Base URL: ${dotenv.env['BASE_URL'] ?? 'default_url'}');
+
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {

@@ -1,23 +1,33 @@
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:convert';
 
 class ApiService {
   // Base URL for the backend API
-  final String baseUrl = ' https://5da0-212-112-153-97.ngrok-free.app';
+  final String baseUrl = dotenv.env['BASE_URL'] ?? 'default_url';
 
+  ApiService() {
+    print('Base URL: $baseUrl'); // Debugging: Ensure correct backend URL
+  }
   // Helper method to handle responses
   dynamic _handleResponse(http.Response response) {
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      return jsonDecode(response.body);
-    } else {
-      final error = jsonDecode(response.body);
-      throw Exception(error['message'] ?? 'Something went wrong');
+    try {
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return jsonDecode(response.body);
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['message'] ?? 'Unexpected error occurred');
+      }
+    } catch (_) {
+      throw Exception('Failed to process response');
     }
   }
+
 
   // Login user
   Future<Map<String, dynamic>> login(String email, String password) async {
     try {
+      print('Base URL: $baseUrl'); // Debugging: Ensure correct backend URL
       final response = await http
           .post(
         Uri.parse('$baseUrl/auth/login'), // Ensure the endpoint matches your backend
@@ -38,6 +48,7 @@ class ApiService {
     required String name,
   }) async {
     try {
+      print('Base URL: $baseUrl'); // Debugging: Ensure correct backend URL
       final response = await http
           .post(
         Uri.parse('$baseUrl/auth/register'), // Ensure the endpoint matches your backend
@@ -58,6 +69,7 @@ class ApiService {
   // Example: Get user profile (optional for your app)
   Future<Map<String, dynamic>> getUserProfile(String token) async {
     try {
+      print('Base URL: $baseUrl'); // Debugging: Ensure correct backend URL
       final response = await http
           .get(
         Uri.parse('$baseUrl/user/profile'), // Replace with your endpoint
@@ -76,6 +88,7 @@ class ApiService {
   // Example: Logout user (optional)
   Future<void> logout(String token) async {
     try {
+      print('Base URL: $baseUrl'); // Debugging: Ensure correct backend URL
       final response = await http
           .post(
         Uri.parse('$baseUrl/auth/logout'), // Replace with your endpoint

@@ -27,7 +27,11 @@ if (process.env.NODE_ENV !== 'production') {
 
 // Root endpoint
 app.get('/', (req, res) => {
-  res.send('RØBS Sport Club Management API is running');
+  res.json({
+    message: 'RØBS Sport Club Management API is running',
+    version: '1.0.0',
+    health: 'healthy',
+  });
 });
 
 // Set up routes
@@ -37,8 +41,30 @@ app.use('/participation', verifyToken, participationRoutes); // Protected routes
 // Generic error handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ message: 'Internal server error' });
+  const status = err.status || 500;
+  const message = process.env.NODE_ENV !== 'production' ? err.message : 'Internal server error';
+  res.status(status).json({ message });
 });
+
+//Enhanced CORS Configurationp
+app.use(
+  cors({
+    origin: 'https://your-frontend-url.com',
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
+
+//Health Check Endpoint
+app.get('/health', async (req, res) => {
+  try {
+    await sql.query('SELECT 1'); // Example query to test DB connection
+    res.status(200).json({ status: 'healthy' });
+  } catch (err) {
+    res.status(500).json({ status: 'unhealthy', error: err.message });
+  }
+});
+
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
