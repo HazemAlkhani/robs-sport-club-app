@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
@@ -7,15 +8,17 @@ import 'package:robs_sport_club/screens/register_screen.dart';
 import 'package:robs_sport_club/screens/welcome_screen.dart';
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized(); // Ensure Flutter is initialized
+  WidgetsFlutterBinding.ensureInitialized();
 
-  // Load .env file with error handling
+  // Ensure dotenv is loaded before proceeding
   try {
     await dotenv.load(fileName: ".env");
-    print('Base URL loaded: ${dotenv.env['BASE_URL'] ?? 'default_url'}');
+    print('DotEnv loaded successfully. Base URL: ${dotenv.env['BASE_URL']}');
   } catch (e) {
-    print('Error loading .env file: $e');
+    print('Error loading DotEnv: $e');
+    rethrow; // Ensure any initialization issue is logged.
   }
+
 
   runApp(const MyApp());
 }
@@ -26,7 +29,10 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => AuthProvider(),
+      create: (_) {
+        log('Initializing AuthProvider...');
+        return AuthProvider();
+      },
       child: Consumer<AuthProvider>(
         builder: (context, auth, _) {
           return MaterialApp(

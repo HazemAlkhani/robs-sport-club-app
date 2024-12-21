@@ -1,33 +1,52 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:robs_sport_club/services/api_service.dart';
 
 class AuthProvider with ChangeNotifier {
-  final ApiService _apiService = ApiService();
-
-  String? _token; // Declare _token as a private field
-  String? get token => _token; // Provide a getter for _token
-
+  late final ApiService _apiService;
+  String? _token;
   bool _isAuthenticated = false;
+
+  String? get token => _token;
   bool get isAuthenticated => _isAuthenticated;
 
-  Future<void> login(String email, String password) async {
-    final response = await _apiService.login(email, password);
-    _token = response['token']; // Assign value to _token
-    _isAuthenticated = true;
-    notifyListeners();
+  AuthProvider() {
+    try {
+      _apiService = ApiService(); // Initialize here after DotEnv is loaded
+    } catch (e) {
+      print('AuthProvider initialization failed: $e');
+      rethrow;
+    }
   }
+
+  Future<void> login(String email, String password) async {
+    try {
+      final response = await _apiService.login(email, password);
+      _token = response['token'];
+      _isAuthenticated = true;
+      notifyListeners();
+    } catch (e) {
+      log('Login failed: $e', level: 1000); // Replaced print with log
+      rethrow;
+    }
+  }
+
   Future<void> register({
     required String email,
     required String password,
     required String name,
   }) async {
-    // Call the API to register a new user
-    await _apiService.register(email: email, password: password, name: name);
-    // Optionally set any authentication state if needed
+    try {
+      await _apiService.register(email: email, password: password, name: name);
+    } catch (e) {
+      log('Registration failed: $e', level: 1000); // Replaced print with log
+      rethrow;
+    }
   }
 
   void logout() {
-    _token = null; // Clear _token on logout
+    _token = null;
     _isAuthenticated = false;
     notifyListeners();
   }

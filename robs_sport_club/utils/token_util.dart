@@ -1,5 +1,5 @@
 import 'dart:convert';
-
+import 'dart:developer';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class TokenUtil {
@@ -39,7 +39,7 @@ class TokenUtil {
       final payload = _decodeBase64(parts[1]);
       return payload;
     } catch (e) {
-      print('Error decoding token: $e');
+      log('Error decoding token: $e', level: 1000); // Replaced print with log
       return null;
     }
   }
