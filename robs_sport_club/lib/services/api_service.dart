@@ -1,14 +1,27 @@
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:convert';
+import 'dart:io';
 
 class ApiService {
   // Base URL for the backend API
   final String baseUrl = dotenv.env['BASE_URL'] ?? 'default_url';
 
   ApiService() {
+    if (baseUrl == 'default_url') {
+      print('Warning: BASE_URL not set in .env file.');
+    }
     print('Base URL: $baseUrl'); // Debugging: Ensure correct backend URL
   }
+
+  // Common headers
+  Map<String, String> _getHeaders({String? token}) {
+    return {
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
+
   // Helper method to handle responses
   dynamic _handleResponse(http.Response response) {
     try {
@@ -23,19 +36,19 @@ class ApiService {
     }
   }
 
-
   // Login user
   Future<Map<String, dynamic>> login(String email, String password) async {
     try {
-      print('Base URL: $baseUrl'); // Debugging: Ensure correct backend URL
       final response = await http
           .post(
-        Uri.parse('$baseUrl/auth/login'), // Ensure the endpoint matches your backend
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse('$baseUrl/auth/login'),
+        headers: _getHeaders(),
         body: jsonEncode({'email': email, 'password': password}),
       )
           .timeout(const Duration(seconds: 10));
       return _handleResponse(response);
+    } on SocketException {
+      throw Exception('No internet connection');
     } catch (e) {
       throw Exception('Failed to log in: ${e.toString()}');
     }
@@ -48,61 +61,76 @@ class ApiService {
     required String name,
   }) async {
     try {
-      print('Base URL: $baseUrl'); // Debugging: Ensure correct backend URL
       final response = await http
           .post(
-        Uri.parse('$baseUrl/auth/register'), // Ensure the endpoint matches your backend
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse('$baseUrl/auth/register'),
+        headers: _getHeaders(),
         body: jsonEncode({
           'email': email,
           'password': password,
           'name': name,
         }),
       )
-          .timeout(const Duration(seconds: 10)); // Timeout for request
+          .timeout(const Duration(seconds: 10));
       return _handleResponse(response);
+    } on SocketException {
+      throw Exception('No internet connection');
     } catch (e) {
       throw Exception('Failed to register: ${e.toString()}');
     }
   }
 
-  // Example: Get user profile (optional for your app)
+  // Get user profile
   Future<Map<String, dynamic>> getUserProfile(String token) async {
     try {
-      print('Base URL: $baseUrl'); // Debugging: Ensure correct backend URL
       final response = await http
           .get(
-        Uri.parse('$baseUrl/user/profile'), // Replace with your endpoint
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
+        Uri.parse('$baseUrl/user/profile'),
+        headers: _getHeaders(token: token),
       )
           .timeout(const Duration(seconds: 10));
       return _handleResponse(response);
+    } on SocketException {
+      throw Exception('No internet connection');
     } catch (e) {
       throw Exception('Failed to fetch user profile: ${e.toString()}');
     }
   }
 
-  // Example: Logout user (optional)
+  // Logout user
   Future<void> logout(String token) async {
     try {
-      print('Base URL: $baseUrl'); // Debugging: Ensure correct backend URL
       final response = await http
           .post(
-        Uri.parse('$baseUrl/auth/logout'), // Replace with your endpoint
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
+        Uri.parse('$baseUrl/auth/logout'),
+        headers: _getHeaders(token: token),
       )
           .timeout(const Duration(seconds: 10));
       if (response.statusCode != 204) {
         throw Exception('Logout failed');
       }
+    } on SocketException {
+      throw Exception('No internet connection');
     } catch (e) {
       throw Exception('Failed to log out: ${e.toString()}');
+    }
+  }
+
+  // Check health of the backend
+  Future<bool> checkHealth() async {
+    try {
+      final response = await http
+          .get(
+        Uri.parse('$baseUrl/health'),
+        headers: _getHeaders(),
+      )
+          .timeout(const Duration(seconds: 10));
+      final data = _handleResponse(response);
+      return data['status'] == 'healthy';
+    } on SocketException {
+      throw Exception('No internet connection');
+    } catch (e) {
+      throw Exception('Failed to check backend health: ${e.toString()}');
     }
   }
 }

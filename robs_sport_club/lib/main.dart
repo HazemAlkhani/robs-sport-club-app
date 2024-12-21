@@ -5,15 +5,12 @@ import 'package:robs_sport_club/providers/auth_provider.dart';
 import 'package:robs_sport_club/screens/login_screen.dart';
 import 'package:robs_sport_club/screens/register_screen.dart';
 import 'package:robs_sport_club/screens/welcome_screen.dart';
-import 'package:robs_sport_club/screens/home_screen.dart';
-import 'package:robs_sport_club/screens/management_screen.dart';
 
 void main() async {
+  WidgetsFlutterBinding.ensureInitialized(); // Ensure Flutter is initialized
   await dotenv.load(); // Load .env file
-  // Debugging: Print the base URL after loading dotenv
-  print('Base URL: ${dotenv.env['BASE_URL'] ?? 'default_url'}');
-
-  runApp(MyApp());
+  print('Base URL: ${dotenv.env['BASE_URL'] ?? 'default_url'}'); // Debugging
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -26,13 +23,15 @@ class MyApp extends StatelessWidget {
       child: Consumer<AuthProvider>(
         builder: (context, auth, _) {
           return MaterialApp(
+            debugShowCheckedModeBanner: false, // Remove debug banner
             title: 'RØBS Sport Club Management App',
             theme: ThemeData(
               colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
               useMaterial3: true,
             ),
-            home: auth.isAuthenticated ? const HomeScreen() : const WelcomeScreen(),
+            initialRoute: auth.isAuthenticated ? '/home' : '/',
             routes: {
+              '/': (context) => const WelcomeScreen(),
               '/login': (context) => LoginScreen(),
               '/home': (context) => const HomeScreen(),
               '/register': (context) => RegisterScreen(),
