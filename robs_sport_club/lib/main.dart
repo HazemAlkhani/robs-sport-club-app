@@ -6,10 +6,17 @@ import 'package:robs_sport_club/screens/login_screen.dart';
 import 'package:robs_sport_club/screens/register_screen.dart';
 import 'package:robs_sport_club/screens/welcome_screen.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized(); // Ensure Flutter is initialized
-  await dotenv.load(); // Load .env file
-  print('Base URL: ${dotenv.env['BASE_URL'] ?? 'default_url'}'); // Debugging
+
+  // Load .env file with error handling
+  try {
+    await dotenv.load(fileName: ".env");
+    print('Base URL loaded: ${dotenv.env['BASE_URL'] ?? 'default_url'}');
+  } catch (e) {
+    print('Error loading .env file: $e');
+  }
+
   runApp(const MyApp());
 }
 

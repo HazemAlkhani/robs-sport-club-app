@@ -118,6 +118,7 @@ class ApiService {
 
   // Check health of the backend
   Future<bool> checkHealth() async {
+
     try {
       final response = await http
           .get(
