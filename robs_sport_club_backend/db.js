@@ -1,3 +1,4 @@
+require('dotenv').config(); // Load environment variables from .env file
 const sql = require('mssql');
 
 // Validate required environment variables

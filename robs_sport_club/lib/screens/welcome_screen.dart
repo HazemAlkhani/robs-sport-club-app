@@ -6,14 +6,15 @@ class WelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Welcome to RØBS Sport Club')),
+      appBar: AppBar(title: const Text('Welcome')),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Text(
-              'Welcome to RØBS Sport Club',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              'Welcome to the RØBS Sport Club Management App!',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 24),
             ),
             const SizedBox(height: 20),
             ElevatedButton(
@@ -22,7 +23,6 @@ class WelcomeScreen extends StatelessWidget {
               },
               child: const Text('Login'),
             ),
-            const SizedBox(height: 10),
             ElevatedButton(
               onPressed: () {
                 Navigator.pushNamed(context, '/register');

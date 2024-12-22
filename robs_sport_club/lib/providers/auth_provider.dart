@@ -1,5 +1,4 @@
 import 'dart:developer';
-
 import 'package:flutter/material.dart';
 import 'package:robs_sport_club/services/api_service.dart';
 
@@ -13,9 +12,9 @@ class AuthProvider with ChangeNotifier {
 
   AuthProvider() {
     try {
-      _apiService = ApiService(); // Initialize here after DotEnv is loaded
+      _apiService = ApiService(); // Initialize ApiService
     } catch (e) {
-      print('AuthProvider initialization failed: $e');
+      log('AuthProvider initialization failed: $e', level: 1000);
       rethrow;
     }
   }
@@ -27,7 +26,7 @@ class AuthProvider with ChangeNotifier {
       _isAuthenticated = true;
       notifyListeners();
     } catch (e) {
-      log('Login failed: $e', level: 1000); // Replaced print with log
+      log('Login failed: $e', level: 1000);
       rethrow;
     }
   }
@@ -39,8 +38,10 @@ class AuthProvider with ChangeNotifier {
   }) async {
     try {
       await _apiService.register(email: email, password: password, name: name);
+      _isAuthenticated = true; // Assume registration also authenticates
+      notifyListeners();
     } catch (e) {
-      log('Registration failed: $e', level: 1000); // Replaced print with log
+      log('Registration failed: $e', level: 1000);
       rethrow;
     }
   }

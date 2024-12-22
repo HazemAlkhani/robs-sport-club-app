@@ -1,4 +1,5 @@
 import 'dart:developer';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
@@ -6,19 +7,26 @@ import 'package:robs_sport_club/providers/auth_provider.dart';
 import 'package:robs_sport_club/screens/login_screen.dart';
 import 'package:robs_sport_club/screens/register_screen.dart';
 import 'package:robs_sport_club/screens/welcome_screen.dart';
+import 'package:robs_sport_club/screens/home_screen.dart';
+import 'package:robs_sport_club/screens/management_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Ensure dotenv is loaded before proceeding
   try {
-    await dotenv.load(fileName: ".env");
-    print('DotEnv loaded successfully. Base URL: ${dotenv.env['BASE_URL']}');
+    final filePath = "C:/Users/hazem/AppManagement/robs_sport_club/.env";
+    log('Attempting to load .env file from: $filePath');
+    if (!File(filePath).existsSync()) {
+      log('.env file does not exist at path: $filePath', level: 1000);
+    } else {
+      log('.env file found at path: $filePath');
+    }
+    await dotenv.load(fileName: filePath);
+    log('DotEnv loaded successfully. BASE_URL: ${dotenv.env['BASE_URL']}');
   } catch (e) {
-    print('Error loading DotEnv: $e');
-    rethrow; // Ensure any initialization issue is logged.
+    log('Error loading DotEnv: $e', level: 1000);
+    rethrow;
   }
-
 
   runApp(const MyApp());
 }
@@ -29,14 +37,11 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) {
-        log('Initializing AuthProvider...');
-        return AuthProvider();
-      },
+      create: (_) => AuthProvider(),
       child: Consumer<AuthProvider>(
         builder: (context, auth, _) {
           return MaterialApp(
-            debugShowCheckedModeBanner: false, // Remove debug banner
+            debugShowCheckedModeBanner: false,
             title: 'RØBS Sport Club Management App',
             theme: ThemeData(
               colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
@@ -52,80 +57,6 @@ class MyApp extends StatelessWidget {
             },
           );
         },
-      ),
-    );
-  }
-}
-
-// HomeScreen.dart
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Home'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () {
-              Provider.of<AuthProvider>(context, listen: false).logout();
-              Navigator.pushReplacementNamed(context, '/');
-            },
-          ),
-        ],
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('Welcome to the RØBS Sport Club Management App!'),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pushNamed(context, '/management');
-              },
-              child: const Text('Go to Management Screen'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ManagementScreen.dart
-class ManagementScreen extends StatelessWidget {
-  const ManagementScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Management Screen'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () {
-              Provider.of<AuthProvider>(context, listen: false).logout();
-              Navigator.pushReplacementNamed(context, '/');
-            },
-          ),
-        ],
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('Management Screen Features'),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('Back to Home'),
-            ),
-          ],
-        ),
       ),
     );
   }
