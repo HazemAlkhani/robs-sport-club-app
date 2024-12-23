@@ -12,12 +12,13 @@ dependencies:
     sdk: flutter
   provider: ^6.0.5
   http: ^1.2.2
+  sqflite: ^2.2.5
+  path: ^1.8.3
   shared_preferences: ^2.1.1
   jwt_decoder: ^2.0.1
   form_field_validator: ^1.1.0
   flutter_dotenv: ^5.2.1
-  flutter_secure_storage: ^4.2.1
-
+  flutter_secure_storage: ^9.2.2
 
 dev_dependencies:
   flutter_test:

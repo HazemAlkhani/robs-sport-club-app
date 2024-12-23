@@ -1,8 +1,7 @@
-
 class Child {
   final int id;
   final String childName;
-  final int userId; // Corresponds to the parent user
+  final int userId; // ID of the parent user
   final String teamNo;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -16,7 +15,7 @@ class Child {
     required this.updatedAt,
   });
 
-  // Factory constructor to create a `Child` instance from JSON
+  // Factory method to create a `Child` instance from JSON
   factory Child.fromJson(Map<String, dynamic> json) {
     return Child(
       id: json['id'],
@@ -28,7 +27,7 @@ class Child {
     );
   }
 
-  // Method to convert a `Child` instance to JSON
+  // Convert a `Child` instance to JSON
   Map<String, dynamic> toJson() {
     return {
       'id': id,

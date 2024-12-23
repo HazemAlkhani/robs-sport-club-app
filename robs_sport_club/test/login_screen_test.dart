@@ -5,25 +5,42 @@ import 'package:robs_sport_club/providers/auth_provider.dart';
 import 'package:robs_sport_club/screens/login_screen.dart';
 
 void main() {
-  testWidgets('LoginScreen displays and logs in', (WidgetTester tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: ChangeNotifierProvider(
-          create: (_) => AuthProvider(),
-          child: LoginScreen(),
+  group('LoginScreen Tests', () {
+    testWidgets('Login form renders correctly', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChangeNotifierProvider(
+            create: (_) => AuthProvider(),
+            child: LoginScreen(),
+          ),
         ),
-      ),
-    );
+      );
 
-    // Enter text into email and password fields
-    await tester.enterText(find.byType(TextField).first, 'test@example.com');
-    await tester.enterText(find.byType(TextField).last, 'password');
+      // Verify presence of email and password fields
+      expect(find.byType(TextField), findsNWidgets(2));
 
-    // Tap on the login button
-    await tester.tap(find.byType(ElevatedButton));
-    await tester.pump();
+      // Verify presence of Login button
+      expect(find.widgetWithText(ElevatedButton, 'Login'), findsOneWidget);
+    });
 
-    // Check if login was successful (based on UI or provider state)
-    // Add relevant expectations based on your app's behavior
+    testWidgets('Displays error dialog on failed login', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChangeNotifierProvider(
+            create: (_) => AuthProvider(),
+            child: LoginScreen(),
+          ),
+        ),
+      );
+
+      // Enter invalid credentials
+      await tester.enterText(find.byType(TextField).first, 'invalid@example.com');
+      await tester.enterText(find.byType(TextField).last, 'wrongpassword');
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Login'));
+      await tester.pump();
+
+      // Expect error dialog
+      expect(find.text('Login Failed'), findsOneWidget);
+    });
   });
 }

@@ -1,9 +1,7 @@
 const cors = require('cors');
 
 const allowedOrigins = [
-  'https://robs-sport-club-app.onrender.com', // Production frontend URL
-  'http://localhost:3000',                   // Local development frontend URL
-  'http://localhost:5000',                   // For testing backend locally
+  'http://localhost:5000', // The only allowed origin for your app
 ];
 
 const corsOptions = {

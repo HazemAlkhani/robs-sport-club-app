@@ -1,35 +1,27 @@
 const express = require('express');
-const router = express.Router();
+const { body } = require('express-validator');
+const validateRequest = require('../middleware/validateRequest');
 const authController = require('../controllers/authController');
-const { body, validationResult } = require('express-validator');
 
-// Middleware for input validation
-const validate = (validations) => {
-  return async (req, res, next) => {
-    await Promise.all(validations.map((validation) => validation.run(req)));
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-    next();
-  };
-};
+const router = express.Router();
 
-// Register a new user
-router.post(
-  '/register',
-  validate([
-    body('email').isEmail().withMessage('Invalid email address'),
-    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-  ]),
-  authController.register
-);
+// Validation rules for registration
+const registerValidation = [
+  body('email').isEmail().withMessage('Invalid email format'),
+  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+  body('name').notEmpty().withMessage('Name is required'),
+];
 
-// Login an existing user
-router.post(
-  '/login',
-  validate([body('email').isEmail().withMessage('Invalid email address')]),
-  authController.login
-);
+// Validation rules for login
+const loginValidation = [
+  body('email').isEmail().withMessage('Invalid email format'),
+  body('password').notEmpty().withMessage('Password is required'),
+];
+
+// Register route
+router.post('/register', registerValidation, validateRequest(registerValidation), authController.register);
+
+// Login route
+router.post('/login', loginValidation, validateRequest(loginValidation), authController.login);
 
 module.exports = router;

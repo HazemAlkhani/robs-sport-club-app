@@ -1,87 +1,125 @@
 const sql = require('../db');
 
 class User {
-  constructor(id, parentName, mobile, email, sportType, createdAt, updatedAt, username, password) {
+  constructor(id, parentName, email, mobile, sportType, username, role, createdAt, updatedAt) {
     this.id = id;
     this.parentName = parentName;
-    this.mobile = mobile;
     this.email = email;
+    this.mobile = mobile;
     this.sportType = sportType;
-    this.createdAt = createdAt;
-    this.updatedAt = updatedAt;
     this.username = username;
-    this.password = password;
+    this.role = role || 'user'; // Default role is 'user'
+    this.createdAt = createdAt || new Date();
+    this.updatedAt = updatedAt || new Date();
   }
 
-  // Method to create a new user in the database
-  static async createUser(parentName, mobile, email, sportType, username, hashedPassword) {
+  // Create a new user
+  static async createUser(parentName, email, mobile, sportType, username, hashedPassword, role = 'user') {
     try {
+      const query = `
+        INSERT INTO Users (ParentName, Email, Mobile, SportType, Username, Password, Role, CreatedAt, UpdatedAt)
+        OUTPUT INSERTED.*
+        VALUES (@ParentName, @Email, @Mobile, @SportType, @Username, @Password, @Role, GETDATE(), GETDATE())
+      `;
       const pool = await sql.connect();
       const result = await pool.request()
-        .input('ParentName', sql.NVarChar, parentName)
-        .input('Mobile', sql.NVarChar, mobile)
-        .input('Email', sql.NVarChar, email)
-        .input('SportType', sql.NVarChar, sportType)
-        .input('Username', sql.NVarChar, username)
-        .input('Password', sql.NVarChar, hashedPassword) // Store hashed password only
-        .query(`
-          INSERT INTO Users (ParentName, Mobile, Email, SportType, Username, Password, CreatedAt, UpdatedAt)
-          VALUES (@ParentName, @Mobile, @Email, @SportType, @Username, @Password, GETDATE(), GETDATE());
-        `);
-      return result.rowsAffected[0] > 0; // Return true if insertion was successful
+        .input('ParentName', sql.VarChar, parentName)
+        .input('Email', sql.VarChar, email)
+        .input('Mobile', sql.VarChar, mobile)
+        .input('SportType', sql.VarChar, sportType)
+        .input('Username', sql.VarChar, username)
+        .input('Password', sql.VarChar, hashedPassword)
+        .input('Role', sql.VarChar, role)
+        .query(query);
+
+      return result.recordset[0]; // Return the created user
     } catch (error) {
-      throw new Error('Error creating user: ' + error.message);
+      throw new Error(`Error creating user: ${error.message}`);
     }
   }
 
-  // Method to find a user by email
-  static async findByEmail(email) {
-    try {
-      const pool = await sql.connect();
-      const result = await pool.request()
-        .input('Email', sql.NVarChar, email)
-        .query(`
-          SELECT * FROM Users WHERE Email = @Email;
-        `);
-      if (result.recordset[0]) {
-        const user = result.recordset[0];
-        return new User(
-          user.Id,
-          user.ParentName,
-          user.Mobile,
-          user.Email,
-          user.SportType,
-          user.CreatedAt,
-          user.UpdatedAt,
-          user.Username,
-          user.Password // Returning the hashed password
-        );
-      }
-      return null; // Return null if no user is found
-    } catch (error) {
-      throw new Error('Error finding user by email: ' + error.message);
-    }
-  }
-
-  // Method to get all user records
+  // Get all users
   static async getAllUsers() {
     try {
+      const query = `SELECT * FROM Users`;
+      const pool = await sql.connect();
+      const result = await pool.request().query(query);
+
+      return result.recordset; // Return all users
+    } catch (error) {
+      throw new Error(`Error fetching users: ${error.message}`);
+    }
+  }
+
+  // Get user by ID
+  static async getUserById(id) {
+    try {
+      const query = `SELECT * FROM Users WHERE Id = @Id`;
       const pool = await sql.connect();
       const result = await pool.request()
-        .query(`SELECT * FROM Users`);
-      return result.recordset.map(user => new User(
-        user.Id,
-        user.ParentName,
-        user.Mobile,
-        user.Email,
-        user.SportType,
-        user.CreatedAt,
-        user.UpdatedAt,
-        user.Username,
-        user.Password
-      ));
+        .input('Id', sql.Int, id)
+        .query(query);
+
+      return result.recordset[0] || null; // Return the user or null if not found
     } catch (error) {
-      throw new Error('Error retrieving users: ' + error.message);
+      throw new Error(`Error fetching user by ID: ${error.message}`);
+    }
+  }
+
+  // Find user by email
+  static async findByEmail(email) {
+    try {
+      const query = `SELECT * FROM Users WHERE Email = @Email`;
+      const pool = await sql.connect();
+      const result = await pool.request()
+        .input('Email', sql.VarChar, email)
+        .query(query);
+
+      return result.recordset[0] || null; // Return the user or null if not found
+    } catch (error) {
+      throw new Error(`Error finding user by email: ${error.message}`);
+    }
+  }
+
+  // Update a user
+  static async updateUser(id, parentName, email, mobile, sportType, username, role) {
+    try {
+      const query = `
+        UPDATE Users
+        SET ParentName = @ParentName, Email = @Email, Mobile = @Mobile,
+            SportType = @SportType, Username = @Username, Role = @Role, UpdatedAt = GETDATE()
+        WHERE Id = @Id
+        OUTPUT INSERTED.*
+      `;
+      const pool = await sql.connect();
+      const result = await pool.request()
+        .input('Id', sql.Int, id)
+        .input('ParentName', sql.VarChar, parentName)
+        .input('Email', sql.VarChar, email)
+        .input('Mobile', sql.VarChar, mobile)
+        .input('SportType', sql.VarChar, sportType)
+        .input('Username', sql.VarChar, username)
+        .input('Role', sql.VarChar, role)
+        .query(query);
+
+      return result.recordset[0] || null; // Return the updated user or null if not found
+    } catch (error) {
+      throw new Error(`Error updating user: ${error.message}`);
+    }
+  }
+
+  // Delete a user
+  static async deleteUser(id) {
+    try {
+      const query = `DELETE FROM Users WHERE Id = @Id OUTPUT DELETED.*`;
+      const pool = await sql.connect();
+      const result = await pool.request()
+        .input('Id', sql.Int, id)
+        .query(query);
+
+      return result.recordset[0] || null; // Return the deleted user or null if not found
+    } catch (error) {
+      throw new Error(`Error deleting user: ${error.message}`);
     }
   }
 }

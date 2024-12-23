@@ -16,18 +16,31 @@ class RegisterScreen extends StatelessWidget {
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             TextField(
               controller: nameController,
-              decoration: const InputDecoration(labelText: 'Name'),
+              decoration: const InputDecoration(
+                labelText: 'Name',
+                border: OutlineInputBorder(),
+              ),
             ),
+            const SizedBox(height: 10),
             TextField(
               controller: emailController,
-              decoration: const InputDecoration(labelText: 'Email'),
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.emailAddress,
             ),
+            const SizedBox(height: 10),
             TextField(
               controller: passwordController,
-              decoration: const InputDecoration(labelText: 'Password'),
+              decoration: const InputDecoration(
+                labelText: 'Password',
+                border: OutlineInputBorder(),
+              ),
               obscureText: true,
             ),
             const SizedBox(height: 20),
@@ -36,23 +49,17 @@ class RegisterScreen extends StatelessWidget {
                 final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
                 try {
-                  // Start registration process
                   await authProvider.register(
-                    email: emailController.text,
-                    password: passwordController.text,
-                    name: nameController.text,
+                    email: emailController.text.trim(),
+                    password: passwordController.text.trim(),
+                    name: nameController.text.trim(),
                   );
 
-                  // Only navigate after confirming successful registration
-                  if (authProvider.isAuthenticated) {
-                    // Use context safely after async operation
-                    if (context.mounted) {
-                      Navigator.pushReplacementNamed(context, '/home');
-                    }
+                  if (authProvider.isAuthenticated && context.mounted) {
+                    Navigator.pushReplacementNamed(context, '/home');
                   }
                 } catch (e) {
                   if (context.mounted) {
-                    // Show an error message if registration fails
                     showDialog(
                       context: context,
                       builder: (context) => AlertDialog(

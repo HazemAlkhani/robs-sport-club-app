@@ -15,14 +15,23 @@ class LoginScreen extends StatelessWidget {
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             TextField(
               controller: emailController,
-              decoration: const InputDecoration(labelText: 'Email'),
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.emailAddress,
             ),
+            const SizedBox(height: 10),
             TextField(
               controller: passwordController,
-              decoration: const InputDecoration(labelText: 'Password'),
+              decoration: const InputDecoration(
+                labelText: 'Password',
+                border: OutlineInputBorder(),
+              ),
               obscureText: true,
             ),
             const SizedBox(height: 20),
@@ -33,11 +42,14 @@ class LoginScreen extends StatelessWidget {
 
                 try {
                   // Start login process
-                  await authProvider.login(emailController.text, passwordController.text);
-                  isAuthenticated = authProvider.isAuthenticated; // Store the result
+                  await authProvider.login(
+                    emailController.text.trim(),
+                    passwordController.text.trim(),
+                  );
+                  isAuthenticated = authProvider.isAuthenticated;
                 } catch (e) {
+                  // Show error message if login fails
                   if (context.mounted) {
-                    // Show an error message if login fails
                     showDialog(
                       context: context,
                       builder: (context) => AlertDialog(
@@ -54,7 +66,7 @@ class LoginScreen extends StatelessWidget {
                   }
                 }
 
-                // Check authentication status and navigate
+                // Navigate to home screen on success
                 if (isAuthenticated && context.mounted) {
                   Navigator.pushReplacementNamed(context, '/home');
                 }

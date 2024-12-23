@@ -2,7 +2,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class TokenManager {
   static const _tokenKey = 'auth_token';
-  static final _storage = FlutterSecureStorage();
+  static final FlutterSecureStorage _storage = FlutterSecureStorage();
 
   /// Save the token securely
   static Future<void> saveToken(String token) async {
@@ -21,7 +21,7 @@ class TokenManager {
 
   /// Check if the token exists
   static Future<bool> hasToken() async {
-    final token = await _storage.read(key: _tokenKey);
+    final token = await getToken();
     return token != null;
   }
 }
