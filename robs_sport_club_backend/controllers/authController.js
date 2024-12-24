@@ -2,37 +2,79 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { sql } = require('../db');
 
-// Register a new user
+// Register
 exports.register = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, role, mobile } = req.body;
+
+    const pool = await sql.connect();
+
+    // Check if email already exists in Admins or Users
+    const existingEmailQuery = `
+      SELECT Email FROM Admins WHERE Email = @Email
+      UNION
+      SELECT Email FROM Users WHERE Email = @Email
+    `;
+    const existingEmailResult = await pool.request()
+      .input('Email', sql.VarChar, email)
+      .query(existingEmailQuery);
+
+    if (existingEmailResult.recordset.length > 0) {
+      return res.status(400).json({ message: 'Email already exists' });
+    }
+
+    // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const query = `
-      INSERT INTO Users (Email, ParentName, Password, Role, CreatedAt, UpdatedAt)
-      VALUES (@Email, @Name, @Password, @Role, GETDATE(), GETDATE())
-    `;
-    const pool = await sql.connect();
+    // Build query and values based on role
+    const query = role === 'admin'
+      ? `
+        INSERT INTO Admins (Name, Email, Password, Mobile, Role, CreatedAt, UpdatedAt)
+        VALUES (@Name, @Email, @Password, @Mobile, @Role, GETDATE(), GETDATE())
+      `
+      : `
+        INSERT INTO Users (ParentName, Email, Password, Mobile, Role, CreatedAt, UpdatedAt)
+        VALUES (@Name, @Email, @Password, @Mobile, @Role, GETDATE(), GETDATE())
+      `;
+
+    const values = {
+      Name: name,
+      Email: email,
+      Password: hashedPassword,
+      Mobile: mobile,
+      Role: role,
+    };
+
+    // Execute the query
     await pool.request()
-      .input('Email', sql.VarChar, email)
-      .input('Name', sql.VarChar, name)
-      .input('Password', sql.VarChar, hashedPassword)
-      .input('Role', sql.VarChar, 'user') // Default role is 'user'
+      .input('Name', sql.VarChar, values.Name)
+      .input('Email', sql.VarChar, values.Email)
+      .input('Password', sql.VarChar, values.Password)
+      .input('Mobile', sql.VarChar, values.Mobile)
+      .input('Role', sql.VarChar, values.Role)
       .query(query);
 
-    res.status(201).json({ message: 'User registered successfully' });
+    res.status(201).json({ message: `${role === 'admin' ? 'Admin' : 'User'} registered successfully` });
   } catch (error) {
-    console.error('Error registering user:', error.message);
-    res.status(500).json({ message: 'Error registering user', error: error.message });
+    console.error('Error registering:', error.message);
+    res.status(500).json({ message: 'Error registering', error: error.message });
   }
 };
 
-// Login an existing user
+// Login
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const query = `SELECT * FROM Users WHERE Email = @Email`;
+    const query = `
+      SELECT Id, ParentName AS Name, Mobile, Email, Password, Role
+      FROM Users
+      WHERE Email = @Email
+      UNION
+      SELECT Id, Name, Mobile, Email, Password, Role
+      FROM Admins
+      WHERE Email = @Email
+    `;
     const pool = await sql.connect();
     const result = await pool.request()
       .input('Email', sql.VarChar, email)
@@ -54,9 +96,10 @@ exports.login = async (req, res) => {
       token,
       user: {
         id: user.Id,
-        name: user.ParentName,
+        name: user.Name,
         email: user.Email,
         role: user.Role,
+        mobile: user.Mobile,
       },
     });
   } catch (error) {

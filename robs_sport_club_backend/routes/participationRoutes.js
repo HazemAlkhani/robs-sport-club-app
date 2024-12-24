@@ -1,63 +1,57 @@
 const express = require('express');
 const { body, param } = require('express-validator');
-const validateRequest = require('../middleware/validateRequest');
-const verifyToken = require('../middleware/auth');
 const participationController = require('../controllers/participationController');
+const verifyToken = require('../middleware/auth');
+const validateRequest = require('../middleware/validateRequest');
 
 const router = express.Router();
 
-// Validation rules for creating/updating participation
+// Validation rules for adding participation
 const participationValidation = [
-  body('childId').isInt().withMessage('Child ID must be an integer'),
-  body('participationType').notEmpty().withMessage('Participation type is required'),
-  body('teamNo').notEmpty().withMessage('Team number is required'),
-  body('date').isISO8601().withMessage('Date must be a valid ISO 8601 format'),
-  body('timeStart').isISO8601().withMessage('Start time must be in a valid ISO 8601 format'), // Added time validation
-  body('timeEnd').isISO8601().withMessage('End time must be in a valid ISO 8601 format'), // Added time validation
-  body('location').notEmpty().withMessage('Location is required'),
+  body('ChildName').notEmpty().withMessage('Child name is required'),
+  body('ParticipationType').isIn(['Training', 'Match']).withMessage('Participation type must be "Training" or "Match"'),
+  body('Date').isISO8601().withMessage('Invalid date format (YYYY-MM-DD expected)'),
+  body('TimeStart')
+    .matches(/^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)(\.\d+)?$/)
+    .withMessage('Invalid time format for TimeStart (HH:MM:SS[.fff...] expected)'),
+  body('TimeEnd')
+    .matches(/^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)(\.\d+)?$/)
+    .withMessage('Invalid time format for TimeEnd (HH:MM:SS[.fff...] expected)'),
+  body('Location').notEmpty().withMessage('Location is required'),
 ];
 
-// Validation rule for fetching or deleting participation by ID
-const idValidation = [
-  param('id').isInt().withMessage('Participation ID must be an integer'),
-];
 
-// Create a new participation record
-router.post(
-  '/',
+// Add participation route
+router.post('/add', verifyToken, participationValidation, (req, res, next) => {
+  console.log('Request Body:', req.body);
+  next();
+}, participationController.addParticipation);
+
+router.get(
+  '/all',
+  verifyToken,
+  participationController.getAllParticipations
+);
+
+router.get(
+  '/my-children',
+  verifyToken,
+  participationController.getParticipationByUser
+);
+
+router.put(
+  '/update/:id',
   verifyToken,
   participationValidation,
   validateRequest(participationValidation),
-  participationController.createParticipation
-);
-
-// Get all participation records
-router.get('/', verifyToken, participationController.getAllParticipations);
-
-// Get participation by ID
-router.get(
-  '/:id',
-  verifyToken,
-  idValidation,
-  validateRequest(idValidation),
-  participationController.getParticipationById
-);
-
-// Update participation by ID
-router.put(
-  '/:id',
-  verifyToken,
-  [...idValidation, ...participationValidation],
-  validateRequest([...idValidation, ...participationValidation]),
   participationController.updateParticipation
 );
 
-// Delete participation by ID
 router.delete(
-  '/:id',
+  '/delete/:id',
   verifyToken,
-  idValidation,
-  validateRequest(idValidation),
+  param('id').isInt().withMessage('Participation ID must be an integer'),
+  validateRequest([param('id')]),
   participationController.deleteParticipation
 );
 

@@ -6,7 +6,9 @@ const jwt = require('jsonwebtoken');
  * @returns {string|null} - Extracted token or null if invalid
  */
 const extractBearerToken = (authHeader) => {
-  if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
   return authHeader.split(' ')[1];
 };
 
@@ -17,22 +19,40 @@ const extractBearerToken = (authHeader) => {
  * @param {Function} next - Express next middleware function
  */
 const verifyToken = (req, res, next) => {
-  const token = extractBearerToken(req.header('Authorization')); // Extract token from header
+  const authHeader = req.header('Authorization');
+  const token = extractBearerToken(authHeader);
+
   if (!token) {
-    return res.status(401).json({ message: 'Access denied. No token provided or malformed token.' });
+    return res.status(401).json({
+      message: 'Access denied. No token provided or malformed token.',
+    });
   }
 
   try {
-    // Verify token and attach decoded payload to request object
+    // Verify the token using the secret key
     const verified = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = verified; // Add `user` property to request
-    next(); // Proceed to next middleware or route handler
+    req.user = verified; // Attach decoded token payload to the request object
+
+    console.log('Token verified successfully:', verified); // Debugging purpose
+
+    next(); // Pass control to the next middleware or route handler
   } catch (error) {
-    // Handle token verification errors
     if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({ message: 'Token has expired. Please log in again.' });
+      return res.status(401).json({
+        message: 'Token has expired. Please log in again.',
+      });
     }
-    res.status(401).json({ message: 'Access denied. Invalid token.' });
+
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        message: 'Access denied. Invalid token.',
+      });
+    }
+
+    console.error('Token verification error:', error); // Log unexpected errors
+    return res.status(500).json({
+      message: 'An unexpected error occurred during token verification.',
+    });
   }
 };
 

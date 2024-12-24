@@ -38,6 +38,12 @@ app.get('/', (req, res) => {
   });
 });
 
+app.use((req, res, next) => {
+  console.log(`Incoming request: ${req.method} ${req.url}`);
+  next();
+});
+
+
 // Routes
 app.use('/auth', authRoutes);
 app.use('/children', childRoutes);
