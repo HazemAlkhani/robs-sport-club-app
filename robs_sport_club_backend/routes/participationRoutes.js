@@ -18,8 +18,8 @@ const participationValidation = [
     .isISO8601()
     .withMessage('Invalid date format (YYYY-MM-DD expected)'),
   body('TimeStart')
-    .isInt({ min: 0, max: 2359 })
-    .withMessage('Invalid TimeStart format. Use a 4-digit integer (e.g., 1030 for 10:30).'),
+    .matches(/^([01]\d|2[0-3]):([0-5]\d)$/)
+    .withMessage('Invalid TimeStart format. Use HH:MM format (e.g., 11:11).'), // Updated to validate HH:MM
   body('Duration')
     .isInt({ min: 1 })
     .withMessage('Duration must be a positive integer.'),

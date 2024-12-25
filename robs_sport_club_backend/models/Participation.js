@@ -34,7 +34,7 @@ class Participation {
         .input('CreatedBy', sql.Int, createdBy)
         .input('ChildName', sql.NVarChar, childName)
         .input('Duration', sql.Int, duration)
-        .input('TimeStart', sql.Int, timeStart)
+        .input('TimeStart', sql.NVarChar, timeStart)
         .query(query);
 
       return result.recordset[0]; // Return the created participation record
