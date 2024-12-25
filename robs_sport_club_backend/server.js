@@ -14,21 +14,30 @@ const requestLogger = require('./middleware/requestLogger');
 
 const app = express();
 
+// Validate required environment variables
+const requiredVars = ['DB_USER', 'DB_PASSWORD', 'JWT_SECRET'];
+requiredVars.forEach((key) => {
+  if (!process.env[key]) {
+    console.error(`Environment variable ${key} is required but not set.`);
+    process.exit(1);
+  }
+});
+
 // Connect to the database
 connectDB()
   .then(() => console.log('Database connected successfully'))
   .catch((err) => {
     console.error('Database connection failed:', err.message);
-    process.exit(1); // Exit if the database connection fails
+    process.exit(1);
   });
 
 // Middleware setup
 app.use(express.json()); // Parse JSON request bodies
-app.use(corsConfig); // CORS setup
-app.use(helmet()); // Security headers
-app.use(morgan('combined')); // Log requests
-app.use(rateLimiter); // Limit request rates
-app.use(requestLogger); // Log request details
+app.use(corsConfig); // Enable CORS
+app.use(helmet()); // Set security headers
+app.use(morgan('combined')); // Log HTTP requests
+app.use(rateLimiter); // Protect against rate-based attacks
+app.use(requestLogger); // Log request details for debugging
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -38,33 +47,48 @@ app.get('/', (req, res) => {
   });
 });
 
+// Log all incoming requests
 app.use((req, res, next) => {
   console.log(`Incoming request: ${req.method} ${req.url}`);
+  console.log('Request Body:', req.body);
   next();
 });
 
 
-// Routes
+// Register routes
 app.use('/auth', authRoutes);
 app.use('/children', childRoutes);
 app.use('/users', userRoutes);
 app.use('/participation', participationRoutes);
 
-// Error handling middleware
+// Handle errors
 app.use(errorHandler);
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
   console.log('SIGINT received: Shutting down server...');
   await disconnectDB();
+  console.log('Database disconnected successfully.');
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
   console.log('SIGTERM received: Shutting down server...');
   await disconnectDB();
+  console.log('Database disconnected successfully.');
   process.exit(0);
 });
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'Healthy',
+    uptime: process.uptime(),
+    timestamp: new Date(),
+    message: 'RØBS Sport Club Management API is running smoothly',
+  });
+});
+
 
 // Start the server
 const PORT = process.env.PORT || 5000;

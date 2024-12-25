@@ -26,32 +26,25 @@ exports.register = async (req, res) => {
     // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Build query and values based on role
-    const query = role === 'admin'
-      ? `
-        INSERT INTO Admins (Name, Email, Password, Mobile, Role, CreatedAt, UpdatedAt)
-        VALUES (@Name, @Email, @Password, @Mobile, @Role, GETDATE(), GETDATE())
-      `
-      : `
-        INSERT INTO Users (ParentName, Email, Password, Mobile, Role, CreatedAt, UpdatedAt)
-        VALUES (@Name, @Email, @Password, @Mobile, @Role, GETDATE(), GETDATE())
-      `;
-
-    const values = {
-      Name: name,
-      Email: email,
-      Password: hashedPassword,
-      Mobile: mobile,
-      Role: role,
-    };
+    // Determine the table to insert based on role
+    const query =
+      role === 'admin'
+        ? `
+          INSERT INTO Admins (Name, Email, Password, Mobile, Role, CreatedAt, UpdatedAt)
+          VALUES (@Name, @Email, @Password, @Mobile, @Role, GETDATE(), GETDATE())
+        `
+        : `
+          INSERT INTO Users (ParentName, Email, Password, Mobile, Role, CreatedAt, UpdatedAt)
+          VALUES (@Name, @Email, @Password, @Mobile, @Role, GETDATE(), GETDATE())
+        `;
 
     // Execute the query
     await pool.request()
-      .input('Name', sql.VarChar, values.Name)
-      .input('Email', sql.VarChar, values.Email)
-      .input('Password', sql.VarChar, values.Password)
-      .input('Mobile', sql.VarChar, values.Mobile)
-      .input('Role', sql.VarChar, values.Role)
+      .input('Name', sql.VarChar, name)
+      .input('Email', sql.VarChar, email)
+      .input('Password', sql.VarChar, hashedPassword)
+      .input('Mobile', sql.VarChar, mobile)
+      .input('Role', sql.VarChar, role)
       .query(query);
 
     res.status(201).json({ message: `${role === 'admin' ? 'Admin' : 'User'} registered successfully` });
@@ -86,14 +79,17 @@ exports.login = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.Password);
     if (!isMatch) return res.status(401).json({ message: 'Incorrect password' });
 
+    // Generate JWT token
     const token = jwt.sign(
       { id: user.Id, email: user.Email, role: user.Role },
       process.env.JWT_SECRET,
       { expiresIn: '1h', issuer: 'robs-sport-club' }
     );
 
+    // Include token expiration in response
     res.status(200).json({
       token,
+      expiresIn: 3600, // Token expiration in seconds (1 hour)
       user: {
         id: user.Id,
         name: user.Name,

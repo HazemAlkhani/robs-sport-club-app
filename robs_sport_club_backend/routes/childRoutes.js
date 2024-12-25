@@ -1,21 +1,24 @@
 const express = require('express');
 const { body } = require('express-validator');
 const childController = require('../controllers/childController');
-const { authenticateUser } = require('../middleware/authMiddleware');
+const validateRequest = require('../middleware/validateRequest');
+const authenticateUser = require('../middleware/auth');
 
-const router = express.Router();
 
-// Validation rules for Children
-const childValidation = [
+
+// Validation rules for child operations
+const validateChild = [
   body('ChildName').notEmpty().withMessage('Child name is required'),
   body('TeamNo').notEmpty().withMessage('Team number is required'),
   body('SportType').notEmpty().withMessage('Sport type is required'),
 ];
 
+const router = express.Router();
+
 // Routes for managing children
-router.post('/add', authenticateUser, childValidation, childController.addChild); // Add a child
-router.get('/all', authenticateUser, childController.getChildren); // Get all children for the authenticated user
-router.put('/update/:id', authenticateUser, childValidation, childController.updateChild); // Update child details
-router.delete('/delete/:id', authenticateUser, childController.deleteChild); // Delete a child
+router.post('/add', authenticateUser, validateChild, validateRequest, childController.addChild);
+router.get('/all', authenticateUser, childController.getChildren);
+router.put('/update/:id', authenticateUser, validateChild, validateRequest, childController.updateChild);
+router.delete('/delete/:id', authenticateUser, childController.deleteChild);
 
 module.exports = router;

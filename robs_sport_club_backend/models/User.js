@@ -1,53 +1,52 @@
 const sql = require('../db');
+const bcrypt = require('bcrypt');
 
 class User {
-  constructor(id, parentName, email, mobile, sportType, username, role, createdAt, updatedAt) {
+  constructor(id, email, password, role, createdAt, updatedAt) {
     this.id = id;
-    this.parentName = parentName;
     this.email = email;
-    this.mobile = mobile;
-    this.sportType = sportType;
-    this.username = username;
-    this.role = role || 'user'; // Default role is 'user'
+    this.password = password;
+    this.role = role;
     this.createdAt = createdAt || new Date();
     this.updatedAt = updatedAt || new Date();
   }
 
   // Create a new user
-  static async createUser(parentName, email, mobile, sportType, username, hashedPassword, role = 'user') {
+  static async createUser(email, password, role) {
     try {
+      const hashedPassword = await bcrypt.hash(password, 10);
       const query = `
-        INSERT INTO Users (ParentName, Email, Mobile, SportType, Username, Password, Role, CreatedAt, UpdatedAt)
+        INSERT INTO Users (Email, Password, Role, CreatedAt, UpdatedAt)
         OUTPUT INSERTED.*
-        VALUES (@ParentName, @Email, @Mobile, @SportType, @Username, @Password, @Role, GETDATE(), GETDATE())
+        VALUES (@Email, @Password, @Role, GETDATE(), GETDATE())
       `;
       const pool = await sql.connect();
       const result = await pool.request()
-        .input('ParentName', sql.VarChar, parentName)
-        .input('Email', sql.VarChar, email)
-        .input('Mobile', sql.VarChar, mobile)
-        .input('SportType', sql.VarChar, sportType)
-        .input('Username', sql.VarChar, username)
-        .input('Password', sql.VarChar, hashedPassword)
-        .input('Role', sql.VarChar, role)
+        .input('Email', sql.NVarChar, email)
+        .input('Password', sql.NVarChar, hashedPassword)
+        .input('Role', sql.NVarChar, role)
         .query(query);
 
       return result.recordset[0]; // Return the created user
     } catch (error) {
-      throw new Error(`Error creating user: ${error.message}`);
+      console.error('Error creating user:', error.message);
+      throw new Error('Failed to create user');
     }
   }
 
-  // Get all users
-  static async getAllUsers() {
+  // Get user by email
+  static async getUserByEmail(email) {
     try {
-      const query = `SELECT * FROM Users`;
+      const query = `SELECT * FROM Users WHERE Email = @Email`;
       const pool = await sql.connect();
-      const result = await pool.request().query(query);
+      const result = await pool.request()
+        .input('Email', sql.NVarChar, email)
+        .query(query);
 
-      return result.recordset; // Return all users
+      return result.recordset[0] || null; // Return the user or null if not found
     } catch (error) {
-      throw new Error(`Error fetching users: ${error.message}`);
+      console.error('Error fetching user by email:', error.message);
+      throw new Error('Failed to fetch user by email');
     }
   }
 
@@ -62,49 +61,33 @@ class User {
 
       return result.recordset[0] || null; // Return the user or null if not found
     } catch (error) {
-      throw new Error(`Error fetching user by ID: ${error.message}`);
-    }
-  }
-
-  // Find user by email
-  static async findByEmail(email) {
-    try {
-      const query = `SELECT * FROM Users WHERE Email = @Email`;
-      const pool = await sql.connect();
-      const result = await pool.request()
-        .input('Email', sql.VarChar, email)
-        .query(query);
-
-      return result.recordset[0] || null; // Return the user or null if not found
-    } catch (error) {
-      throw new Error(`Error finding user by email: ${error.message}`);
+      console.error('Error fetching user by ID:', error.message);
+      throw new Error('Failed to fetch user by ID');
     }
   }
 
   // Update a user
-  static async updateUser(id, parentName, email, mobile, sportType, username, role) {
+  static async updateUser(id, email, password, role) {
     try {
+      const hashedPassword = password ? await bcrypt.hash(password, 10) : null;
       const query = `
         UPDATE Users
-        SET ParentName = @ParentName, Email = @Email, Mobile = @Mobile,
-            SportType = @SportType, Username = @Username, Role = @Role, UpdatedAt = GETDATE()
+        SET Email = @Email, Password = COALESCE(@Password, Password), Role = @Role, UpdatedAt = GETDATE()
         WHERE Id = @Id
         OUTPUT INSERTED.*
       `;
       const pool = await sql.connect();
       const result = await pool.request()
         .input('Id', sql.Int, id)
-        .input('ParentName', sql.VarChar, parentName)
-        .input('Email', sql.VarChar, email)
-        .input('Mobile', sql.VarChar, mobile)
-        .input('SportType', sql.VarChar, sportType)
-        .input('Username', sql.VarChar, username)
-        .input('Role', sql.VarChar, role)
+        .input('Email', sql.NVarChar, email)
+        .input('Password', sql.NVarChar, hashedPassword)
+        .input('Role', sql.NVarChar, role)
         .query(query);
 
       return result.recordset[0] || null; // Return the updated user or null if not found
     } catch (error) {
-      throw new Error(`Error updating user: ${error.message}`);
+      console.error('Error updating user:', error.message);
+      throw new Error('Failed to update user');
     }
   }
 
@@ -119,7 +102,28 @@ class User {
 
       return result.recordset[0] || null; // Return the deleted user or null if not found
     } catch (error) {
-      throw new Error(`Error deleting user: ${error.message}`);
+      console.error('Error deleting user:', error.message);
+      throw new Error('Failed to delete user');
+    }
+  }
+
+  // Validate user credentials
+  static async validateUser(email, password) {
+    try {
+      const user = await this.getUserByEmail(email);
+      if (!user) {
+        throw new Error('Invalid email or password');
+      }
+
+      const isValidPassword = await bcrypt.compare(password, user.Password);
+      if (!isValidPassword) {
+        throw new Error('Invalid email or password');
+      }
+
+      return user; // Return the user if credentials are valid
+    } catch (error) {
+      console.error('Error validating user:', error.message);
+      throw new Error('Failed to validate user');
     }
   }
 }

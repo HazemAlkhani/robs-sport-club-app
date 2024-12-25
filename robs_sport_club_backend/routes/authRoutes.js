@@ -1,6 +1,7 @@
 const express = require('express');
 const { body } = require('express-validator');
 const authController = require('../controllers/authController');
+const validateRequest = require('../middleware/validateRequest'); // Middleware to handle validation errors
 
 const router = express.Router();
 
@@ -8,13 +9,22 @@ const router = express.Router();
 const registerValidation = [
   body('name').notEmpty().withMessage('Name is required'),
   body('email').isEmail().withMessage('Invalid email format'),
-  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+  body('password')
+    .isLength({ min: 6 })
+    .withMessage('Password must be at least 6 characters')
+    .matches(/\d/)
+    .withMessage('Password must contain a number'),
   body('mobile').isMobilePhone().withMessage('Invalid mobile number'),
   body('role').isIn(['admin', 'user']).withMessage('Role must be "admin" or "user"'),
 ];
 
-// Route for registration
-router.post('/register', registerValidation, authController.register);
+// Registration route
+router.post(
+  '/register',
+  registerValidation,
+  validateRequest, // Middleware to handle validation errors
+  authController.register
+);
 
 // Validation rules for login
 const loginValidation = [
@@ -23,6 +33,11 @@ const loginValidation = [
 ];
 
 // Login route
-router.post('/login', loginValidation, authController.login);
+router.post(
+  '/login',
+  loginValidation,
+  validateRequest, // Middleware to handle validation errors
+  authController.login
+);
 
 module.exports = router;

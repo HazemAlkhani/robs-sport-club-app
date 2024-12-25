@@ -1,41 +1,46 @@
 const sql = require('../db');
 
 class Participation {
-  constructor(id, childId, participationType, teamNo, date, timeStart, timeEnd, location, createdAt, updatedAt) {
+  constructor(id, childId, participationType, teamNo, date, location, createdBy, createdAt, updatedAt, childName, duration, timeStart) {
     this.id = id;
     this.childId = childId;
     this.participationType = participationType;
     this.teamNo = teamNo;
     this.date = date;
-    this.timeStart = timeStart;
-    this.timeEnd = timeEnd;
     this.location = location;
+    this.createdBy = createdBy;
     this.createdAt = createdAt || new Date();
     this.updatedAt = updatedAt || new Date();
+    this.childName = childName;
+    this.duration = duration;
+    this.timeStart = timeStart;
   }
 
   // Create a new participation record
-  static async createParticipation(childId, participationType, teamNo, date, timeStart, timeEnd, location) {
+  static async createParticipation(childId, participationType, teamNo, date, location, createdBy, childName, duration, timeStart) {
     try {
       const query = `
-        INSERT INTO Participation (ChildId, ParticipationType, TeamNo, Date, TimeStart, TimeEnd, Location, CreatedAt, UpdatedAt)
+        INSERT INTO Participation (ChildId, ParticipationType, TeamNo, Date, Location, CreatedBy, CreatedAt, UpdatedAt, ChildName, Duration, TimeStart)
         OUTPUT INSERTED.*
-        VALUES (@ChildId, @ParticipationType, @TeamNo, @Date, @TimeStart, @TimeEnd, @Location, GETDATE(), GETDATE())
+        VALUES (@ChildId, @ParticipationType, @TeamNo, @Date, @Location, @CreatedBy, GETDATE(), GETDATE(), @ChildName, @Duration, @TimeStart)
       `;
       const pool = await sql.connect();
       const result = await pool.request()
         .input('ChildId', sql.Int, childId)
-        .input('ParticipationType', sql.VarChar, participationType)
-        .input('TeamNo', sql.VarChar, teamNo)
+        .input('ParticipationType', sql.NVarChar, participationType)
+        .input('TeamNo', sql.NVarChar, teamNo)
         .input('Date', sql.Date, date)
-        .input('TimeStart', sql.VarChar, timeStart)
-        .input('TimeEnd', sql.VarChar, timeEnd)
-        .input('Location', sql.VarChar, location)
+        .input('Location', sql.NVarChar, location)
+        .input('CreatedBy', sql.Int, createdBy)
+        .input('ChildName', sql.NVarChar, childName)
+        .input('Duration', sql.Int, duration)
+        .input('TimeStart', sql.Int, timeStart)
         .query(query);
 
       return result.recordset[0]; // Return the created participation record
     } catch (error) {
-      throw new Error(`Error creating participation: ${error.message}`);
+      console.error('Error creating participation:', error.message);
+      throw new Error('Failed to create participation');
     }
   }
 
@@ -48,7 +53,8 @@ class Participation {
 
       return result.recordset; // Return all participation records
     } catch (error) {
-      throw new Error(`Error fetching participations: ${error.message}`);
+      console.error('Error fetching participations:', error.message);
+      throw new Error('Failed to fetch participations');
     }
   }
 
@@ -63,17 +69,19 @@ class Participation {
 
       return result.recordset[0] || null; // Return the participation record or null if not found
     } catch (error) {
-      throw new Error(`Error fetching participation by ID: ${error.message}`);
+      console.error('Error fetching participation by ID:', error.message);
+      throw new Error('Failed to fetch participation by ID');
     }
   }
 
   // Update a participation record
-  static async updateParticipation(id, childId, participationType, teamNo, date, timeStart, timeEnd, location) {
+  static async updateParticipation(id, childId, participationType, teamNo, date, location, childName, duration, timeStart) {
     try {
       const query = `
         UPDATE Participation
         SET ChildId = @ChildId, ParticipationType = @ParticipationType, TeamNo = @TeamNo,
-            Date = @Date, TimeStart = @TimeStart, TimeEnd = @TimeEnd, Location = @Location, UpdatedAt = GETDATE()
+            Date = @Date, Location = @Location, ChildName = @ChildName, Duration = @Duration,
+            TimeStart = @TimeStart, UpdatedAt = GETDATE()
         WHERE Id = @Id
         OUTPUT INSERTED.*
       `;
@@ -81,17 +89,19 @@ class Participation {
       const result = await pool.request()
         .input('Id', sql.Int, id)
         .input('ChildId', sql.Int, childId)
-        .input('ParticipationType', sql.VarChar, participationType)
-        .input('TeamNo', sql.VarChar, teamNo)
+        .input('ParticipationType', sql.NVarChar, participationType)
+        .input('TeamNo', sql.NVarChar, teamNo)
         .input('Date', sql.Date, date)
-        .input('TimeStart', sql.VarChar, timeStart)
-        .input('TimeEnd', sql.VarChar, timeEnd)
-        .input('Location', sql.VarChar, location)
+        .input('Location', sql.NVarChar, location)
+        .input('ChildName', sql.NVarChar, childName)
+        .input('Duration', sql.Int, duration)
+        .input('TimeStart', sql.Int, timeStart)
         .query(query);
 
       return result.recordset[0] || null; // Return the updated participation record or null if not found
     } catch (error) {
-      throw new Error(`Error updating participation: ${error.message}`);
+      console.error('Error updating participation:', error.message);
+      throw new Error('Failed to update participation');
     }
   }
 
@@ -106,7 +116,8 @@ class Participation {
 
       return result.recordset[0] || null; // Return the deleted participation record or null if not found
     } catch (error) {
-      throw new Error(`Error deleting participation: ${error.message}`);
+      console.error('Error deleting participation:', error.message);
+      throw new Error('Failed to delete participation');
     }
   }
 }

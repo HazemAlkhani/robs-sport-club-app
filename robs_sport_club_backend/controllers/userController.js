@@ -5,6 +5,11 @@ exports.createUser = async (req, res) => {
   try {
     const { parentName, email, mobile, sportType, username } = req.body;
 
+    // Validate required fields
+    if (!parentName || !email || !mobile || !sportType || !username) {
+      return res.status(400).json({ message: 'All fields are required' });
+    }
+
     const query = `
       INSERT INTO Users (ParentName, Email, Mobile, SportType, Username, CreatedAt, UpdatedAt)
       VALUES (@ParentName, @Email, @Mobile, @SportType, @Username, GETDATE(), GETDATE())
@@ -31,6 +36,10 @@ exports.getAllUsers = async (req, res) => {
     const query = `SELECT * FROM Users`;
     const pool = await sql.connect();
     const result = await pool.request().query(query);
+
+    if (result.recordset.length === 0) {
+      return res.status(404).json({ message: 'No users found' });
+    }
 
     res.status(200).json(result.recordset);
   } catch (error) {
@@ -66,6 +75,11 @@ exports.updateUser = async (req, res) => {
   try {
     const { id } = req.params;
     const { parentName, email, mobile, sportType, username } = req.body;
+
+    // Validate required fields
+    if (!parentName || !email || !mobile || !sportType || !username) {
+      return res.status(400).json({ message: 'All fields are required' });
+    }
 
     const query = `
       UPDATE Users
