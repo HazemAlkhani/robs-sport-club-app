@@ -24,12 +24,15 @@ requiredVars.forEach((key) => {
 });
 
 // Connect to the database
-connectDB()
-  .then(() => console.log('Database connected successfully'))
-  .catch((err) => {
+(async () => {
+  try {
+    await connectDB();
+    console.log('Database connected successfully');
+  } catch (err) {
     console.error('Database connection failed:', err.message);
     process.exit(1);
-  });
+  }
+})();
 
 // Middleware setup
 app.use(express.json()); // Parse JSON request bodies
@@ -64,21 +67,6 @@ app.use('/participation', participationRoutes);
 // Handle errors
 app.use(errorHandler);
 
-// Graceful shutdown
-process.on('SIGINT', async () => {
-  console.log('SIGINT received: Shutting down server...');
-  await disconnectDB();
-  console.log('Database disconnected successfully.');
-  process.exit(0);
-});
-
-process.on('SIGTERM', async () => {
-  console.log('SIGTERM received: Shutting down server...');
-  await disconnectDB();
-  console.log('Database disconnected successfully.');
-  process.exit(0);
-});
-
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({
@@ -90,8 +78,25 @@ app.get('/health', (req, res) => {
 });
 
 
+// Graceful shutdown
+const gracefulShutdown = async (signal) => {
+  console.log(`${signal} received: Shutting down server...`);
+  try {
+    await disconnectDB();
+    console.log('Database disconnected successfully.');
+    process.exit(0);
+  } catch (err) {
+    console.error('Error during shutdown:', err.message);
+    process.exit(1);
+  }
+};
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+
 // Start the server
 const PORT = process.env.PORT || 5000;
+
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
