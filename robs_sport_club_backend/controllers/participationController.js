@@ -146,10 +146,55 @@ exports.updateParticipation = async (req, res) => {
   }
 };
 
+// get participation (Admin and user)
+exports.getChildStatistics = async (req, res) => {
+  try {
+    const pool = await sql.connect();
+
+    // Determine the query condition based on role
+    const isAdmin = req.user.role === 'admin';
+    const queryCondition = isAdmin ? '1=1' : 'c.UserId = @UserId'; // Admin sees all, user sees their own data
+
+    // Define the query
+    const query = `
+      SELECT
+        cs.ChildId,
+        cs.Year,
+        cs.TotalTrainingHours,
+        cs.TotalMatchHours,
+        c.ChildName ${isAdmin ? ', c.UserId' : ''}
+      FROM
+        ChildrinStatistics cs
+      LEFT JOIN
+        Children c ON cs.ChildId = c.Id
+      WHERE ${queryCondition}
+    `;
+
+    const request = pool.request();
+    if (!isAdmin) {
+      // Add UserId parameter for non-admin users
+      request.input('UserId', sql.Int, req.user.id);
+    }
+
+    const result = await request.query(query);
+
+    res.status(200).json({ success: true, data: result.recordset });
+  } catch (error) {
+    console.error('Error fetching child statistics:', error.message);
+    res.status(500).json({ success: false, message: 'Error fetching child statistics', error: error.message });
+  }
+};
+
+
 // Delete participation
 exports.deleteParticipation = async (req, res) => {
   try {
     const { id } = req.params;
+
+    // Check if the logged-in user is an admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied. Only admins can delete participation.' });
+    }
 
     const query = 'DELETE FROM Participation WHERE Id = @Id';
     const pool = await sql.connect();

@@ -70,6 +70,13 @@ router.get(
   }
 );
 
+// Route: Fetch child statistics (admin or user)
+router.get(
+  '/child-statistics',
+  verifyToken,
+  participationController.getChildStatistics
+);
+
 // Route: Update participation
 router.put(
   '/update/:id',
