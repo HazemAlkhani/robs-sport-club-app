@@ -1,122 +1,229 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ApiService {
-  late final String baseUrl;
+  static const String baseUrl = 'http://localhost:5000';
+  static String? authToken; // To store the JWT token
 
-  ApiService() {
-    if (!dotenv.isInitialized) {
-      throw Exception('DotEnv is not initialized. Ensure dotenv.load() is called before using ApiService.');
-    }
-    baseUrl = dotenv.env['BASE_URL'] ?? 'http://localhost:5000';
+  // Set the auth token after login
+  static void setAuthToken(String token) {
+    authToken = token;
+    print('Auth token set: $authToken'); // Debug print
   }
 
-  // Common headers with optional token
-  Map<String, String> _getHeaders({String? token}) {
+  // Common headers for requests
+  static Map<String, String> getHeaders() {
     return {
       'Content-Type': 'application/json',
-      if (token != null) 'Authorization': 'Bearer $token',
+      if (authToken != null) 'Authorization': 'Bearer $authToken',
     };
   }
 
-  // Handle API responses
-  dynamic _handleResponse(http.Response response) {
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      return jsonDecode(response.body);
-    } else {
-      final error = jsonDecode(response.body);
-      throw Exception(error['message'] ?? 'Unexpected error occurred');
+  // Utility function for logging response details
+  static void logResponse(http.Response response) {
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+  }
+
+  // Fetch all participations
+  static Future<List<dynamic>> getAllParticipations() async {
+    try {
+      print('Fetching all participations...');
+      final response = await http.get(Uri.parse('$baseUrl/participations/all'), headers: getHeaders());
+      logResponse(response);
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception('Failed to fetch participations: ${response.body}');
+      }
+    } catch (e) {
+      print('Error fetching participations: $e');
+      rethrow;
+    }
+  }
+
+  // Fetch all teams
+  static Future<List<String>> getAllTeams() async {
+    try {
+      print('Fetching all teams...');
+      final response = await http.get(Uri.parse('$baseUrl/participations/teams'), headers: getHeaders());
+      logResponse(response);
+      if (response.statusCode == 200) {
+        return List<String>.from(jsonDecode(response.body).map((e) => e['TeamNo']));
+      } else {
+        throw Exception('Failed to fetch teams: ${response.body}');
+      }
+    } catch (e) {
+      print('Error fetching teams: $e');
+      rethrow;
+    }
+  }
+
+  // Fetch participation by user ID
+  static Future<List<dynamic>> getParticipationByUser(int userId) async {
+    try {
+      print('Fetching participation for user: $userId');
+      final response = await http.get(
+        Uri.parse('$baseUrl/users/$userId/participations'),
+        headers: getHeaders(),
+      );
+      logResponse(response);
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body)['data'];
+      } else {
+        throw Exception('Failed to fetch user participations: ${response.body}');
+      }
+    } catch (e) {
+      print('Error fetching user participations: $e');
+      rethrow;
+    }
+  }
+
+  // Register an admin
+  static Future<void> registerAdmin(Map<String, dynamic> adminData) async {
+    print('Registering admin: $adminData');
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/register'),
+      headers: getHeaders(),
+      body: jsonEncode(adminData),
+    );
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+    if (response.statusCode != 201) {
+      throw Exception('Failed to register admin: ${response.body}');
+    }
+  }
+
+  // Register a user
+  static Future<void> registerUser(Map<String, dynamic> userData) async {
+    print('Registering user: $userData');
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/register'),
+      headers: getHeaders(),
+      body: jsonEncode(userData),
+    );
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+    if (response.statusCode != 201) {
+      throw Exception('Failed to register user: ${response.body}');
     }
   }
 
   // User login
-  Future<Map<String, dynamic>> login(String email, String password) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/auth/login'),
-      headers: _getHeaders(),
-      body: jsonEncode({'email': email, 'password': password}),
-    );
-    return _handleResponse(response);
+  static Future<Map<String, dynamic>> login(String email, String password) async {
+    try {
+      print('Logging in with email: $email');
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email, 'password': password}),
+      );
+      logResponse(response);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setAuthToken(data['token']); // Automatically set the auth token after login
+        return data;
+      } else {
+        throw Exception('Failed to login: ${response.body}');
+      }
+    } catch (e) {
+      print('Error during login: $e');
+      rethrow;
+    }
   }
 
-  // User registration
-  Future<void> register({
-    required String email,
-    required String password,
-    required String name,
-  }) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/auth/register'),
-      headers: _getHeaders(),
-      body: jsonEncode({'email': email, 'password': password, 'name': name}),
-    );
-    _handleResponse(response);
+  // Add a child
+  static Future<void> addChild(Map<String, dynamic> childData) async {
+    try {
+      print('Adding child: $childData');
+      final response = await http.post(
+        Uri.parse('$baseUrl/children/add'),
+        headers: getHeaders(),
+        body: jsonEncode(childData),
+      );
+      logResponse(response);
+      if (response.statusCode != 201) {
+        throw Exception('Failed to add child: ${response.body}');
+      }
+    } catch (e) {
+      print('Error adding child: $e');
+      rethrow;
+    }
   }
 
-  // Fetch children data
-  Future<List<dynamic>> fetchChildren() async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/child'),
-      headers: _getHeaders(),
-    );
-    return _handleResponse(response);
+  // Fetch all child statistics (admin view)
+  static Future<List<dynamic>> fetchAllChildStatistics() async {
+    try {
+      print('Fetching all child statistics...');
+      final response = await http.get(Uri.parse('$baseUrl/child-statistics'), headers: getHeaders());
+      logResponse(response);
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body)['data'];
+      } else {
+        throw Exception('Failed to fetch all child statistics: ${response.body}');
+      }
+    } catch (e) {
+      print('Error fetching child statistics: $e');
+      rethrow;
+    }
   }
 
-  // Add a new child
-  Future<void> addChild(Map<String, dynamic> childData) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/child'),
-      headers: _getHeaders(),
-      body: jsonEncode(childData),
-    );
-    _handleResponse(response);
+  // Fetch child statistics for a specific user
+  static Future<List<dynamic>> fetchChildStatisticsByUser(int userId) async {
+    try {
+      print('Fetching child statistics for user: $userId');
+      final response = await http.get(
+        Uri.parse('$baseUrl/child-statistics?userId=$userId'),
+        headers: getHeaders(),
+      );
+      logResponse(response);
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body)['data'];
+      } else {
+        throw Exception('Failed to fetch child statistics for user: ${response.body}');
+      }
+    } catch (e) {
+      print('Error fetching child statistics by user: $e');
+      rethrow;
+    }
   }
 
-  // Fetch participation records
-  Future<List<dynamic>> fetchParticipations() async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/participation'),
-      headers: _getHeaders(),
-    );
-    return _handleResponse(response);
+  // Fetch children by team
+  static Future<List<dynamic>> getChildrenByTeam(String teamNo) async {
+    try {
+      print('Fetching children for team: $teamNo');
+      final response = await http.get(
+        Uri.parse('$baseUrl/participations/children/$teamNo'),
+        headers: getHeaders(),
+      );
+      logResponse(response);
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body)['data'];
+      } else {
+        throw Exception('Failed to fetch children: ${response.body}');
+      }
+    } catch (e) {
+      print('Error fetching children by team: $e');
+      rethrow;
+    }
   }
 
-  // Add a participation record
-  Future<void> addParticipation(Map<String, dynamic> participationData) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/participation'),
-      headers: _getHeaders(),
-      body: jsonEncode(participationData),
-    );
-    _handleResponse(response);
-  }
-
-  // Fetch user data
-  Future<List<dynamic>> fetchUsers() async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/users'),
-      headers: _getHeaders(),
-    );
-    return _handleResponse(response);
-  }
-
-  // Add a new user
-  Future<void> addUser(Map<String, dynamic> userData) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/users'),
-      headers: _getHeaders(),
-      body: jsonEncode(userData),
-    );
-    _handleResponse(response);
-  }
-
-  // Verify token
-  Future<bool> verifyToken(String token) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/auth/verify'),
-      headers: _getHeaders(token: token),
-    );
-    return response.statusCode == 200;
+  // Add participation
+  static Future<void> addParticipation(Map<String, dynamic> participationData) async {
+    try {
+      print('Adding participation: $participationData');
+      final response = await http.post(
+        Uri.parse('$baseUrl/participations/add'),
+        headers: getHeaders(),
+        body: jsonEncode(participationData),
+      );
+      logResponse(response);
+      if (response.statusCode != 201) {
+        throw Exception('Failed to add participation: ${response.body}');
+      }
+    } catch (e) {
+      print('Error adding participation: $e');
+      rethrow;
+    }
   }
 }

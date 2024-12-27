@@ -1,13 +1,51 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:robs_sport_club/providers/auth_provider.dart';
+import '../services/api_service.dart';
 
-class RegisterScreen extends StatelessWidget {
+class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({Key? key}) : super(key: key);
+
+  @override
+  State<RegisterScreen> createState() => _RegisterScreenState();
+}
+
+class _RegisterScreenState extends State<RegisterScreen> {
+  final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final TextEditingController nameController = TextEditingController();
+  final TextEditingController mobileController = TextEditingController();
 
-  RegisterScreen({super.key});
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
+  Future<void> register(String role) async {
+    if (_formKey.currentState!.validate()) {
+      final Map<String, dynamic> registrationData = {
+        'name': nameController.text.trim(),
+        'email': emailController.text.trim(),
+        'password': passwordController.text,
+        'mobile': mobileController.text.trim(),
+        'role': role,
+      };
+
+      try {
+        await ApiService.registerUser(registrationData);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Registered successfully as $role')),
+        );
+        clearFields();
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error registering: $e')),
+        );
+      }
+    }
+  }
+
+  void clearFields() {
+    nameController.clear();
+    emailController.clear();
+    passwordController.clear();
+    mobileController.clear();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -15,70 +53,76 @@ class RegisterScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('Register')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Name',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: emailController,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.emailAddress,
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: passwordController,
-              decoration: const InputDecoration(
-                labelText: 'Password',
-                border: OutlineInputBorder(),
-              ),
-              obscureText: true,
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () async {
-                final authProvider = Provider.of<AuthProvider>(context, listen: false);
-
-                try {
-                  await authProvider.register(
-                    email: emailController.text.trim(),
-                    password: passwordController.text.trim(),
-                    name: nameController.text.trim(),
-                  );
-
-                  if (authProvider.isAuthenticated && context.mounted) {
-                    Navigator.pushReplacementNamed(context, '/home');
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              TextFormField(
+                controller: nameController,
+                decoration: const InputDecoration(labelText: 'Name'),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Name is required';
                   }
-                } catch (e) {
-                  if (context.mounted) {
-                    showDialog(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('Registration Failed'),
-                        content: Text(e.toString()),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text('OK'),
-                          ),
-                        ],
-                      ),
-                    );
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: emailController,
+                decoration: const InputDecoration(labelText: 'Email'),
+                keyboardType: TextInputType.emailAddress,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Email is required';
+                  } else if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+                    return 'Enter a valid email address';
                   }
-                }
-              },
-              child: const Text('Register'),
-            ),
-          ],
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: passwordController,
+                decoration: const InputDecoration(labelText: 'Password'),
+                obscureText: true,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Password is required';
+                  } else if (value.length < 6) {
+                    return 'Password must be at least 6 characters';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: mobileController,
+                decoration: const InputDecoration(labelText: 'Mobile'),
+                keyboardType: TextInputType.phone,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Mobile number is required';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  ElevatedButton(
+                    onPressed: () => register('admin'),
+                    child: const Text('Register as Admin'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => register('user'),
+                    child: const Text('Register as User'),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

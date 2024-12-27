@@ -2,9 +2,9 @@ require('dotenv').config(); // Load environment variables
 const express = require('express');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const cors = require('cors');
 const rateLimiter = require('./middleware/rateLimiter');
 const errorHandler = require('./middleware/errorHandler');
-const corsConfig = require('./middleware/corsConfig');
 const { connectDB, disconnectDB } = require('./db');
 const authRoutes = require('./routes/authRoutes');
 const childRoutes = require('./routes/childRoutes');
@@ -15,7 +15,7 @@ const requestLogger = require('./middleware/requestLogger');
 const app = express();
 
 // Validate required environment variables
-const requiredVars = ['DB_USER', 'DB_PASSWORD', 'JWT_SECRET'];
+const requiredVars = ['DB_USER', 'DB_PASSWORD', 'JWT_SECRET', 'PORT'];
 requiredVars.forEach((key) => {
   if (!process.env[key]) {
     console.error(`Environment variable ${key} is required but not set.`);
@@ -36,7 +36,13 @@ requiredVars.forEach((key) => {
 
 // Middleware setup
 app.use(express.json()); // Parse JSON request bodies
-app.use(corsConfig); // Enable CORS
+app.use(
+  cors({
+    origin: '*', // Adjust based on your frontend's domain for stricter security
+    methods: 'GET,POST,PUT,DELETE',
+    allowedHeaders: 'Content-Type,Authorization',
+  })
+); // Enable CORS
 app.use(helmet()); // Set security headers
 app.use(morgan('combined')); // Log HTTP requests
 app.use(rateLimiter); // Protect against rate-based attacks
@@ -53,19 +59,17 @@ app.get('/', (req, res) => {
 // Log all incoming requests
 app.use((req, res, next) => {
   console.log(`Incoming request: ${req.method} ${req.url}`);
+  console.log('Request Headers:', req.headers);
   console.log('Request Body:', req.body);
+  console.log('Query Params:', req.query);
   next();
 });
-
 
 // Register routes
 app.use('/auth', authRoutes);
 app.use('/children', childRoutes);
 app.use('/users', userRoutes);
-app.use('/participation', participationRoutes);
-
-// Handle errors
-app.use(errorHandler);
+app.use('/participations', participationRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -77,6 +81,15 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Handle 404 Not Found
+app.use((req, res) => {
+  res.status(404).json({
+    error: `Route ${req.method} ${req.url} not found.`,
+  });
+});
+
+// Handle errors
+app.use(errorHandler);
 
 // Graceful shutdown
 const gracefulShutdown = async (signal) => {

@@ -12,52 +12,61 @@ const parseTimeToHHMM = (timeInt) => {
   return `${hours}:${minutes}`;
 };
 
-// Fetch all participations (Admin only)
+// Fetch distinct teams
+exports.getTeams = async (req) => {
+  try {
+    const pool = await sql.connect();
+    const query = `SELECT DISTINCT TeamNo FROM Children`;
+    const result = await pool.request().query(query);
+    return result.recordset; // Return data
+  } catch (error) {
+    console.error('Error fetching teams:', error.message);
+    throw new Error('Error fetching teams'); // Throw error for route to handle
+  }
+};
+
+
+// Fetch all participations based on user role
 exports.getAllParticipations = async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, message: 'Access denied' });
+    const pool = await sql.connect();
+    const isAdmin = req.user.role === 'admin';
+    let query;
+
+    if (isAdmin) {
+      // Admin: Fetch all participations
+      query = `
+        SELECT P.*, C.ChildName, C.TeamNo
+        FROM Participation P
+        LEFT JOIN Children C ON P.ChildId = C.Id
+        ORDER BY P.Date DESC
+      `;
+    } else {
+      // User: Fetch participations for their children
+      query = `
+        SELECT P.*, C.ChildName, C.TeamNo
+        FROM Participation P
+        INNER JOIN Children C ON P.ChildId = C.Id
+        WHERE C.UserId = @UserId
+        ORDER BY P.Date DESC
+      `;
     }
 
-    const query = 'SELECT * FROM Participation';
-    const pool = await sql.connect();
-    const result = await pool.request().query(query);
+    const request = pool.request();
+    if (!isAdmin) {
+      request.input('UserId', sql.Int, req.user.id); // Add UserId for non-admin users
+    }
 
+    const result = await request.query(query);
     const formattedResult = result.recordset.map((row) => ({
       ...row,
-      TimeStart: parseTimeToHHMM(row.TimeStart), // Convert INT to HH:MM
+      TimeStart: row.TimeStart,
     }));
 
     res.status(200).json({ success: true, data: formattedResult });
   } catch (error) {
     console.error('Error fetching participations:', error.message);
     res.status(500).json({ success: false, message: 'Error fetching participations', error: error.message });
-  }
-};
-
-// Fetch participation for children of a parent (Parent only)
-exports.getParticipationByUser = async (req, res) => {
-  try {
-    const userId = req.user.id;
-
-    const query = `
-      SELECT P.*
-      FROM Participation P
-      INNER JOIN Children C ON P.ChildId = C.Id
-      WHERE C.UserId = @UserId
-    `;
-    const pool = await sql.connect();
-    const result = await pool.request().input('UserId', sql.Int, userId).query(query);
-
-    const formattedResult = result.recordset.map((row) => ({
-      ...row,
-      TimeStart: parseTimeToHHMM(row.TimeStart), // Convert INT to HH:MM
-    }));
-
-    res.status(200).json({ success: true, data: formattedResult });
-  } catch (error) {
-    console.error('Error fetching participation:', error.message);
-    res.status(500).json({ success: false, message: 'Error fetching participation', error: error.message });
   }
 };
 
@@ -71,10 +80,7 @@ exports.addParticipation = async (req, res) => {
       return res.status(400).json({ message: 'All fields are required.' });
     }
 
-    const timeStartInt = parseTimeToInt(TimeStart);
-
     const pool = await sql.connect();
-
     const childQuery = `
       SELECT Id AS ChildId, TeamNo
       FROM Children
@@ -100,7 +106,7 @@ exports.addParticipation = async (req, res) => {
       .input('ParticipationType', sql.VarChar, ParticipationType)
       .input('TeamNo', sql.VarChar, TeamNo)
       .input('Date', sql.Date, Date)
-      .input('TimeStart', sql.NVarChar, TimeStart) // Store in HH:MM format
+      .input('TimeStart', sql.NVarChar, TimeStart) // Ensure no conversion here
       .input('Duration', sql.Int, Duration)
       .input('Location', sql.VarChar, Location)
       .input('CreatedBy', sql.Int, adminId)
@@ -113,11 +119,17 @@ exports.addParticipation = async (req, res) => {
   }
 };
 
+
+
 // Update participation
 exports.updateParticipation = async (req, res) => {
   try {
     const { id } = req.params;
     const { ChildId, ParticipationType, TeamNo, Date, TimeStart, Duration, Location } = req.body;
+
+    if (!id || !ChildId || !ParticipationType || !TeamNo || !Date || !TimeStart || !Duration || !Location) {
+      return res.status(400).json({ message: 'All fields are required for update.' });
+    }
 
     const timeStartInt = parseTimeToInt(TimeStart);
 
@@ -134,7 +146,7 @@ exports.updateParticipation = async (req, res) => {
       .input('ParticipationType', sql.VarChar, ParticipationType)
       .input('TeamNo', sql.VarChar, TeamNo)
       .input('Date', sql.Date, Date)
-      .input('TimeStart', sql.NVarChar, TimeStart) // Store in HH:MM format
+      .input('TimeStart', sql.NVarChar, TimeStart)
       .input('Duration', sql.Int, Duration)
       .input('Location', sql.VarChar, Location)
       .query(query);
@@ -146,52 +158,11 @@ exports.updateParticipation = async (req, res) => {
   }
 };
 
-// get participation (Admin and user)
-exports.getChildStatistics = async (req, res) => {
-  try {
-    const pool = await sql.connect();
-
-    // Determine the query condition based on role
-    const isAdmin = req.user.role === 'admin';
-    const queryCondition = isAdmin ? '1=1' : 'c.UserId = @UserId'; // Admin sees all, user sees their own data
-
-    // Define the query
-    const query = `
-      SELECT
-        cs.ChildId,
-        cs.Year,
-        cs.TotalTrainingHours,
-        cs.TotalMatchHours,
-        c.ChildName ${isAdmin ? ', c.UserId' : ''}
-      FROM
-        ChildrinStatistics cs
-      LEFT JOIN
-        Children c ON cs.ChildId = c.Id
-      WHERE ${queryCondition}
-    `;
-
-    const request = pool.request();
-    if (!isAdmin) {
-      // Add UserId parameter for non-admin users
-      request.input('UserId', sql.Int, req.user.id);
-    }
-
-    const result = await request.query(query);
-
-    res.status(200).json({ success: true, data: result.recordset });
-  } catch (error) {
-    console.error('Error fetching child statistics:', error.message);
-    res.status(500).json({ success: false, message: 'Error fetching child statistics', error: error.message });
-  }
-};
-
-
 // Delete participation
 exports.deleteParticipation = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Check if the logged-in user is an admin
     if (req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Access denied. Only admins can delete participation.' });
     }

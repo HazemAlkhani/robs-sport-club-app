@@ -1,12 +1,75 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:robs_sport_club/providers/auth_provider.dart';
+import 'package:robs_sport_club/services/api_service.dart'; // Ensure your API integration here
+import 'user_screen.dart'; // User-specific screen
+import 'admin_dashboard.dart'; // Admin-specific screen
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({Key? key}) : super(key: key);
+
+  @override
+  LoginScreenState createState() => LoginScreenState();
+}
+
+class LoginScreenState extends State<LoginScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  bool isLoading = false;
 
-  LoginScreen({super.key});
+  void login() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      // Call the login API
+      final response = await ApiService.login(
+        emailController.text,
+        passwordController.text,
+      );
+
+      print('Login Response: $response'); // Debugging log
+
+      // Check if the response contains the expected data
+      if (response.containsKey('token') && response.containsKey('user')) {
+        String role = response['user']['role'];
+        if (role == 'user') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => UserScreen(userId: response['user']['id']),
+            ),
+          );
+        } else if (role == 'admin') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const AdminDashboard(),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Unknown role, cannot proceed')),
+          );
+        }
+      } else {
+        // Show an error if the response doesn't contain expected data
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unexpected response structure')),
+        );
+      }
+    } catch (e) {
+      // Handle errors
+      print('Error during login: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -15,62 +78,22 @@ class LoginScreen extends StatelessWidget {
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             TextField(
               controller: emailController,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(labelText: 'Email'),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 16),
             TextField(
               controller: passwordController,
-              decoration: const InputDecoration(
-                labelText: 'Password',
-                border: OutlineInputBorder(),
-              ),
+              decoration: const InputDecoration(labelText: 'Password'),
               obscureText: true,
             ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () async {
-                final authProvider = Provider.of<AuthProvider>(context, listen: false);
-                bool isAuthenticated = false;
-
-                try {
-                  // Start login process
-                  await authProvider.login(
-                    emailController.text.trim(),
-                    passwordController.text.trim(),
-                  );
-                  isAuthenticated = authProvider.isAuthenticated;
-                } catch (e) {
-                  // Show error message if login fails
-                  if (context.mounted) {
-                    showDialog(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('Login Failed'),
-                        content: Text(e.toString()),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text('OK'),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-                }
-
-                // Navigate to home screen on success
-                if (isAuthenticated && context.mounted) {
-                  Navigator.pushReplacementNamed(context, '/home');
-                }
-              },
+            const SizedBox(height: 16),
+            isLoading
+                ? const CircularProgressIndicator()
+                : ElevatedButton(
+              onPressed: login,
               child: const Text('Login'),
             ),
           ],

@@ -1,33 +1,26 @@
 class User {
   final int id;
-  final String name;
+  final String parentName;
   final String email;
   final String mobile;
+  final String role;
 
   User({
     required this.id,
-    required this.name,
+    required this.parentName,
     required this.email,
     required this.mobile,
+    required this.role,
   });
 
-  // Factory constructor to create a `User` instance from JSON
+  // Convert JSON to User object
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      id: json['id'], // Updated key to match standard JSON naming
-      name: json['name'], // Updated key to match standard JSON naming
-      email: json['email'], // Updated key to match standard JSON naming
-      mobile: json['mobile'], // Updated key to match standard JSON naming
+      id: json['id'],
+      parentName: json['parentName'],
+      email: json['email'],
+      mobile: json['mobile'],
+      role: json['role'],
     );
-  }
-
-  // Method to convert a `User` instance to JSON
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'email': email,
-      'mobile': mobile,
-    };
   }
 }

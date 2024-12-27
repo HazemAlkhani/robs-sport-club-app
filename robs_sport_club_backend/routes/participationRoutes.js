@@ -19,7 +19,7 @@ const participationValidation = [
     .withMessage('Invalid date format (YYYY-MM-DD expected)'),
   body('TimeStart')
     .matches(/^([01]\d|2[0-3]):([0-5]\d)$/)
-    .withMessage('Invalid TimeStart format. Use HH:MM format (e.g., 11:11).'), // Updated to validate HH:MM
+    .withMessage('Invalid TimeStart format. Use HH:MM format (e.g., 11:11).'),
   body('Duration')
     .isInt({ min: 1 })
     .withMessage('Duration must be a positive integer.'),
@@ -28,7 +28,7 @@ const participationValidation = [
     .withMessage('Location is required'),
 ];
 
-// Debugging middleware to log incoming requests
+// Middleware to log incoming requests
 router.use((req, res, next) => {
   const user = req.user ? `User: ${req.user.email} (${req.user.role})` : 'Unauthenticated';
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - ${user}`);
@@ -36,7 +36,7 @@ router.use((req, res, next) => {
   next();
 });
 
-// Route: Add participation
+// Admin routes
 router.post(
   '/add',
   verifyToken,
@@ -45,14 +45,54 @@ router.post(
   participationController.addParticipation
 );
 
-// Route: Fetch all participations (Admin only)
-router.get(
-  '/all',
+router.get('/all', verifyToken, participationController.getAllParticipations);
+
+router.put(
+  '/update/:id',
   verifyToken,
-  participationController.getAllParticipations
+  participationValidation,
+  validateRequest,
+  participationController.updateParticipation
 );
 
-// Route: Fetch participation for children of a parent (Parent only)
+router.delete(
+  '/delete/:id',
+  verifyToken,
+  param('id').isInt().withMessage('Participation ID must be an integer'),
+  validateRequest,
+  participationController.deleteParticipation
+);
+
+router.get('/teams', verifyToken, async (req, res, next) => {
+  try {
+    const teams = await participationController.getTeams(req);
+    if (!teams || teams.length === 0) {
+      return res.status(404).json({ message: 'No teams found.' });
+    }
+    res.status(200).json({ success: true, data: teams });
+  } catch (error) {
+    console.error('Error fetching teams:', error.message, error.stack);
+    next(error); // Use global error handler
+  }
+});
+
+
+
+router.get('/children/:teamNo', verifyToken, async (req, res, next) => {
+  try {
+    const teamNo = req.params.teamNo;
+    const children = await participationController.getChildrenByTeam(teamNo); // Replace with your DB query logic
+    if (!children || children.length === 0) {
+      return res.status(404).json({ success: false, message: 'No children found for the selected team.' });
+    }
+    res.status(200).json({ success: true, data: children });
+  } catch (error) {
+    console.error('Error fetching children:', error.message, error.stack);
+    next(error);
+  }
+});
+
+// User-specific routes
 router.get(
   '/my-children',
   verifyToken,
@@ -70,29 +110,21 @@ router.get(
   }
 );
 
-// Route: Fetch child statistics (admin or user)
 router.get(
   '/child-statistics',
   verifyToken,
-  participationController.getChildStatistics
-);
-
-// Route: Update participation
-router.put(
-  '/update/:id',
-  verifyToken,
-  participationValidation,
-  validateRequest,
-  participationController.updateParticipation
-);
-
-// Route: Delete participation
-router.delete(
-  '/delete/:id',
-  verifyToken,
-  param('id').isInt().withMessage('Participation ID must be an integer'),
-  validateRequest,
-  participationController.deleteParticipation
+  async (req, res, next) => {
+    try {
+      const statistics = await participationController.getChildStatistics(req, res);
+      if (!statistics || statistics.length === 0) {
+        return res.status(404).json({ message: 'No child statistics found.' });
+      }
+      res.status(200).json({ success: true, data: statistics });
+    } catch (error) {
+      console.error('Error fetching child statistics:', error.message, error.stack);
+      next(error);
+    }
+  }
 );
 
 module.exports = router;

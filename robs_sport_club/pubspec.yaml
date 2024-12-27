@@ -1,7 +1,8 @@
 name: robs_sport_club
-description: "A comprehensive app for managing RØBS Sport Club activities."
+description: "Robs sport club."
 
-publish_to: 'none'
+publish_to:
+
 version: 1.0.0+1
 
 environment:
@@ -10,22 +11,17 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  provider: ^6.0.5
+  cupertino_icons: ^1.0.8
   http: ^1.2.2
-  sqflite: ^2.2.5
-  path: ^1.8.3
-  shared_preferences: ^2.1.1
-  jwt_decoder: ^2.0.1
-  form_field_validator: ^1.1.0
-  flutter_dotenv: ^5.2.1
-  flutter_secure_storage: ^4.2.0
+  intl: ^0.20.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
-  mockito: ^5.4.1
-  test: ^1.21.0
+  test: ^1.25.8
+
 
 flutter:
   uses-material-design: true
+
