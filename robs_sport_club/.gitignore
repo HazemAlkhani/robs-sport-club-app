@@ -44,11 +44,5 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Node.js/Backend related
-node_modules/
-logs/
-*.log
-npm-debug.log*
-
 # Environment variables
-**/.env
+.env
