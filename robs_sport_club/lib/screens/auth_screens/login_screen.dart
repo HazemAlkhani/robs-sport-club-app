@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:robs_sport_club/services/api_service.dart'; // Ensure your API integration here
-import 'user_screen.dart'; // User-specific screen
-import 'admin_dashboard.dart'; // Admin-specific screen
+import 'package:robs_sport_club/services/api_service.dart';
+import '../user_screens/user_screen.dart';
+import '../admin_screens/admin_dashboard.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -15,7 +15,7 @@ class LoginScreenState extends State<LoginScreen> {
   final TextEditingController passwordController = TextEditingController();
   bool isLoading = false;
 
-  void login() async {
+  Future<void> login() async {
     setState(() {
       isLoading = true;
     });
@@ -29,40 +29,40 @@ class LoginScreenState extends State<LoginScreen> {
 
       print('Login Response: $response'); // Debugging log
 
-      // Check if the response contains the expected data
+      // Validate the response structure
       if (response.containsKey('token') && response.containsKey('user')) {
-        String role = response['user']['role'];
+        final String role = response['user']['role'];
+        final int userId = response['user']['id'];
+
         if (role == 'user') {
+          // Navigate to UserScreen
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (context) => UserScreen(userId: response['user']['id']),
+              builder: (context) => UserScreen(userId: userId),
             ),
           );
         } else if (role == 'admin') {
+          // Navigate to AdminDashboard
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (context) => const AdminDashboard(),
+              builder: (context) => AdminDashboard(
+                userId: userId,
+                isAdmin: true,
+              ),
             ),
           );
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Unknown role, cannot proceed')),
-          );
+          _showSnackBar('Unknown role, cannot proceed.');
         }
       } else {
-        // Show an error if the response doesn't contain expected data
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Unexpected response structure')),
-        );
+        _showSnackBar('Unexpected response structure.');
       }
     } catch (e) {
-      // Handle errors
+      // Handle any errors during login
       print('Error during login: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      _showSnackBar('Error: $e');
     } finally {
       setState(() {
         isLoading = false;
@@ -70,6 +70,11 @@ class LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,6 +87,7 @@ class LoginScreenState extends State<LoginScreen> {
             TextField(
               controller: emailController,
               decoration: const InputDecoration(labelText: 'Email'),
+              keyboardType: TextInputType.emailAddress,
             ),
             const SizedBox(height: 16),
             TextField(

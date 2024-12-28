@@ -11,6 +11,8 @@ const childRoutes = require('./routes/childRoutes');
 const userRoutes = require('./routes/userRoutes');
 const participationRoutes = require('./routes/participationRoutes');
 const requestLogger = require('./middleware/requestLogger');
+const statisticsRouter = require('./routes/statisticsRouter');
+
 
 const app = express();
 
@@ -70,6 +72,8 @@ app.use('/auth', authRoutes);
 app.use('/children', childRoutes);
 app.use('/users', userRoutes);
 app.use('/participations', participationRoutes);
+app.use('/statistics', statisticsRouter);
+
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -103,6 +107,8 @@ const gracefulShutdown = async (signal) => {
     process.exit(1);
   }
 };
+
+
 
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));

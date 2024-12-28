@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:robs_sport_club/screens/add_participation.dart';
-import 'package:robs_sport_club/screens/participation_list_screen.dart';
-import 'package:robs_sport_club/screens/child_statistics_screen.dart';
-
+import 'package:robs_sport_club/screens/participation_screens/add_participation.dart';
+import 'package:robs_sport_club/screens/participation_screens/participation_list_screen.dart';
+import 'package:robs_sport_club/screens/child_screens/child_statistics_screen.dart';
 
 class AdminDashboard extends StatelessWidget {
-  const AdminDashboard({Key? key}) : super(key: key);
+  final int userId;
+  final bool isAdmin;
+
+  const AdminDashboard({
+    Key? key,
+    required this.userId,
+    required this.isAdmin,
+  }) : super(key: key);
+
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +41,10 @@ class AdminDashboard extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const ParticipationListScreen(),
+                    builder: (context) => ParticipationListScreen(
+                      userId: userId,
+                      isAdmin: isAdmin,
+                    ),
                   ),
                 );
               },
@@ -46,11 +56,15 @@ class AdminDashboard extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const ChildStatisticsScreen(isAdmin: true),
+                    builder: (context) => ChildStatisticsScreen(
+                      isAdmin: isAdmin,
+                      userId: userId,
+                      childId: null, // Passing `null` for admin
+                    ),
                   ),
                 );
               },
-              child: const Text('Child Statistics'),
+              child: const Text('View Child Statistics'),
             ),
           ],
         ),

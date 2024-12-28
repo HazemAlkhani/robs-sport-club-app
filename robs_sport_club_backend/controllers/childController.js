@@ -75,25 +75,40 @@ exports.updateChild = async (req, res) => {
 };
 
 
-// Get children
+// Get children (Admin gets all, User gets only their children)
 exports.getChildren = async (req, res) => {
   try {
-    const UserId = req.user.id;
+    const { role, id: userId } = req.user; // Get the role and user ID from the JWT payload
 
-    const query = `SELECT * FROM Children WHERE UserId = @UserId`;
+    // SQL query depends on the user's role
+    const query =
+      role === 'admin'
+        ? `SELECT * FROM Children` // Admin gets all children
+        : `SELECT * FROM Children WHERE UserId = @UserId`; // User gets only their children
+
     const pool = await sql.connect();
-    const result = await pool.request().input('UserId', sql.Int, UserId).query(query);
+    const request = pool.request();
 
-    if (result.recordset.length === 0) {
-      return res.status(404).json({ message: 'No children found for this user.' });
+    // If the user is not an admin, add the UserId parameter
+    if (role !== 'admin') {
+      request.input('UserId', sql.Int, userId);
     }
 
-    res.status(200).json(result.recordset);
+    const result = await request.query(query);
+
+    if (result.recordset.length === 0) {
+      return res
+        .status(404)
+        .json({ message: role === 'admin' ? 'No children found.' : 'You have no children added.' });
+    }
+
+    res.status(200).json({ data: result.recordset });
   } catch (error) {
     console.error('Error fetching children:', error.message);
     res.status(500).json({ message: 'Error fetching children', error: error.message });
   }
 };
+
 
 // Update a child
 exports.addChild = async (req, res, next) => {

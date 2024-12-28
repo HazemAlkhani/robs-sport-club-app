@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
+import '../../services/api_service.dart';
 
 class AddChildScreen extends StatefulWidget {
   final int userId;
@@ -12,17 +12,16 @@ class AddChildScreen extends StatefulWidget {
 
 class _AddChildScreenState extends State<AddChildScreen> {
   final TextEditingController childNameController = TextEditingController();
-  final TextEditingController sportTypeController = TextEditingController();
   String? selectedTeam;
+  String? selectedSportType;
 
-  final List<String> teams = ["Team A", "Team B", "Team C"]; // Example teams
+  final List<String> teams = ["U5", "U6", "U7", "U8", "U9", "U10", "U11", "U12", "U13", "U14", "U15"];
+  final List<String> sportTypes = ["Football", "Handball", "Basketball", "Gymnastic"];
 
   bool isLoading = false;
 
   Future<void> addChild() async {
-    if (childNameController.text.isEmpty ||
-        sportTypeController.text.isEmpty ||
-        selectedTeam == null) {
+    if (childNameController.text.isEmpty || selectedTeam == null || selectedSportType == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('All fields are required.')),
       );
@@ -37,7 +36,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
       await ApiService.addChild({
         'ChildName': childNameController.text,
         'TeamNo': selectedTeam!,
-        'SportType': sportTypeController.text,
+        'SportType': selectedSportType!,
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -85,9 +84,20 @@ class _AddChildScreenState extends State<AddChildScreen> {
               decoration: const InputDecoration(labelText: 'Select Team'),
             ),
             const SizedBox(height: 16),
-            TextField(
-              controller: sportTypeController,
-              decoration: const InputDecoration(labelText: 'Sport Type'),
+            DropdownButtonFormField<String>(
+              value: selectedSportType,
+              onChanged: (value) {
+                setState(() {
+                  selectedSportType = value;
+                });
+              },
+              items: sportTypes
+                  .map((sport) => DropdownMenuItem(
+                value: sport,
+                child: Text(sport),
+              ))
+                  .toList(),
+              decoration: const InputDecoration(labelText: 'Select Sport Type'),
             ),
             const SizedBox(height: 16),
             isLoading

@@ -3,6 +3,8 @@ const { body, param } = require('express-validator');
 const participationController = require('../controllers/participationController');
 const verifyToken = require('../middleware/auth');
 const validateRequest = require('../middleware/validateRequest');
+const { authenticateUser } = require('../middleware/authMiddleware');
+
 
 const router = express.Router();
 
@@ -45,7 +47,7 @@ router.post(
   participationController.addParticipation
 );
 
-router.get('/all', verifyToken, participationController.getAllParticipations);
+router.get('/all', authenticateUser, participationController.getAllParticipations);
 
 router.put(
   '/update/:id',
