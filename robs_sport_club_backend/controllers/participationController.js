@@ -1,126 +1,77 @@
+const moment = require('moment');
 const { sql } = require('../db');
 
-// Helper to parse time from HH:MM to INT and vice versa
-const parseTimeToInt = (time) => {
-  const [hours, minutes] = time.split(':').map(Number);
-  return hours * 100 + minutes;
+// Helper to validate and format dates
+const validateDate = (date) => {
+  const parsedDate = moment(date, 'YYYY-MM-DD', true);
+  if (!parsedDate.isValid()) {
+    throw new Error('Invalid date format. Expected format: YYYY-MM-DD');
+  }
+  return parsedDate.toDate();
 };
 
-const parseTimeToHHMM = (timeInt) => {
-  const hours = Math.floor(timeInt / 100).toString().padStart(2, '0');
-  const minutes = (timeInt % 100).toString().padStart(2, '0');
-  return `${hours}:${minutes}`;
-};
-
-// Fetch distinct teams
-exports.getTeams = async (req) => {
+// Fetch all participations (Admin gets all, User gets their own)
+exports.getAllParticipations = async (req, res) => {
   try {
+    const isAdmin = req.user.role === 'admin';
+
+    const query = isAdmin
+      ? `
+        SELECT P.Id, P.ChildId, C.ChildName, P.ParticipationType, C.TeamNo,
+               CONVERT(VARCHAR, P.Date, 23) AS Date, P.TimeStart, P.Duration, P.Location, A.Name AS Coach
+        FROM Participation P
+        LEFT JOIN Children C ON P.ChildId = C.Id
+        LEFT JOIN Admins A ON P.CreatedBy = A.Id
+        ORDER BY P.Date DESC
+      `
+      : `
+        SELECT P.Id, P.ChildId, C.ChildName, P.ParticipationType, C.TeamNo,
+               CONVERT(VARCHAR, P.Date, 23) AS Date, P.TimeStart, P.Duration, P.Location, A.Name AS Coach
+        FROM Participation P
+        INNER JOIN Children C ON P.ChildId = C.Id
+        LEFT JOIN Admins A ON P.CreatedBy = A.Id
+        WHERE C.UserId = @UserId
+        ORDER BY P.Date DESC
+      `;
+
     const pool = await sql.connect();
-    const query = `SELECT DISTINCT TeamNo FROM Children`;
-    const result = await pool.request().query(query);
-    return result.recordset; // Return data
+    const request = pool.request();
+    if (!isAdmin) request.input('UserId', sql.Int, req.user.id);
+
+    const result = await request.query(query);
+
+    res.status(200).json({
+      success: true,
+      data: result.recordset.map((row) => ({
+        id: row.Id,
+        childId: row.ChildId,
+        childName: row.ChildName,
+        participationType: row.ParticipationType,
+        teamNo: row.TeamNo,
+        date: row.Date,
+        timeStart: row.TimeStart,
+        duration: row.Duration,
+        location: row.Location,
+        coach: row.Coach,
+      })),
+    });
   } catch (error) {
-    console.error('Error fetching teams:', error.message);
-    throw new Error('Error fetching teams'); // Throw error for route to handle
+    console.error('Error fetching participations:', error.message);
+    res.status(500).json({ success: false, message: 'Error fetching participations' });
   }
 };
-// Fetch all participations based on user role
-exports.getAllParticipations = async (req, res) => {
-    try {
-        if (!req.user) {
-            console.error('No user in request');
-            return res.status(401).json({ message: 'Authentication required' });
-        }
 
-        const pool = await sql.connect();
-        const isAdmin = req.user.role === 'admin';
-        console.log('User Role:', req.user.role); // Debug log
-
-        let query;
-        if (isAdmin) {
-            query = `
-                SELECT P.Id, P.ChildId, C.ChildName, P.ParticipationType, C.TeamNo,
-                       CONVERT(VARCHAR, P.Date, 23) AS Date, -- Format Date as YYYY-MM-DD
-                       P.TimeStart, -- Directly use TimeStart as it is already HH:MM
-                       P.Duration,
-                       P.Location,
-                       A.Name AS Coach -- Fetch admin's name and rename to Coach
-                FROM Participation P
-                LEFT JOIN Children C ON P.ChildId = C.Id
-                LEFT JOIN Admins A ON P.CreatedBy = A.Id -- Join with Admins table
-                ORDER BY P.Date DESC
-            `;
-        } else {
-            query = `
-                SELECT P.Id, P.ChildId, C.ChildName, P.ParticipationType, C.TeamNo,
-                       CONVERT(VARCHAR, P.Date, 23) AS Date, -- Format Date as YYYY-MM-DD
-                       P.TimeStart, -- Directly use TimeStart as it is already HH:MM
-                       P.Duration,
-                       P.Location,
-                       A.Name AS Coach -- Fetch admin's name and rename to Coach
-                FROM Participation P
-                INNER JOIN Children C ON P.ChildId = C.Id
-                LEFT JOIN Admins A ON P.CreatedBy = A.Id -- Join with Admins table
-                WHERE C.UserId = @UserId
-                ORDER BY P.Date DESC
-            `;
-        }
-
-        const request = pool.request();
-        if (!isAdmin) {
-            request.input('UserId', sql.Int, req.user.id);
-        }
-
-        const result = await request.query(query);
-
-        // Transform the data to match the required JSON format
-        const formattedResult = result.recordset.map(row => ({
-            Id: row.Id,
-            ChildId: row.ChildId,
-            ChildName: row.ChildName,
-            ParticipationType: row.ParticipationType,
-            TeamNo: row.TeamNo,
-            Date: row.Date,
-            TimeStart: row.TimeStart,
-            Duration: row.Duration,
-            Location: row.Location,
-            Coach: row.Coach
-        }));
-
-        res.status(200).json({ success: true, data: formattedResult });
-    } catch (error) {
-        console.error('Error fetching participations:', error.message);
-        res.status(500).json({ success: false, message: 'Error fetching participations', error: error.message });
-    }
-};
-
-
-const moment = require('moment');
-
-
-
-// Add participation (Admin only)
+// Add participation
 exports.addParticipation = async (req, res) => {
   try {
     const { ChildName, ParticipationType, Date, TimeStart, Duration, Location } = req.body;
     const adminId = req.user.id;
 
-    // Validate required fields
-    if (!ChildName || !ParticipationType || !Date || !TimeStart || !Duration || !Location) {
-      return res.status(400).json({ message: 'All fields are required.' });
-    }
-
-    // Validate and format the Date field using moment
-    const parsedDate = moment(Date, 'YYYY-MM-DD', true);
-    if (!parsedDate.isValid()) {
-      return res.status(400).json({ message: 'Invalid date format. Expected format: YYYY-MM-DD' });
-    }
-
-    const formattedDate = parsedDate.toDate(); // Convert to JavaScript Date object
+    const formattedDate = validateDate(Date);
 
     const pool = await sql.connect();
 
-    // Check if the child exists
+    // Check if the child exists and fetch required details
     const childQuery = `
       SELECT Id AS ChildId, TeamNo
       FROM Children
@@ -130,89 +81,32 @@ exports.addParticipation = async (req, res) => {
       .input('ChildName', sql.VarChar, ChildName)
       .query(childQuery);
 
-    if (childResult.recordset.length === 0) {
+    if (!childResult.recordset.length) {
       return res.status(404).json({ message: `Child '${ChildName}' not found.` });
     }
 
     const { ChildId, TeamNo } = childResult.recordset[0];
 
     // Insert participation
-    const participationQuery = `
-      INSERT INTO Participation (ChildId, ChildName, ParticipationType, TeamNo, Date, TimeStart, Duration, Location, CreatedBy, CreatedAt, UpdatedAt)
-      VALUES (@ChildId, @ChildName, @ParticipationType, @TeamNo, @Date, @TimeStart, @Duration, @Location, @CreatedBy, GETDATE(), GETDATE())
+    const query = `
+      INSERT INTO Participation (ChildId, ParticipationType, TeamNo, Date, TimeStart, Duration, Location, CreatedBy, CreatedAt, UpdatedAt)
+      OUTPUT INSERTED.*
+      VALUES (@ChildId, @ParticipationType, @TeamNo, @Date, @TimeStart, @Duration, @Location, @CreatedBy, GETDATE(), GETDATE())
     `;
-    await pool.request()
+    const result = await pool.request()
       .input('ChildId', sql.Int, ChildId)
-      .input('ChildName', sql.VarChar, ChildName)
       .input('ParticipationType', sql.VarChar, ParticipationType)
       .input('TeamNo', sql.VarChar, TeamNo)
-      .input('Date', sql.Date, formattedDate) // Pass the formatted date
+      .input('Date', sql.Date, formattedDate)
       .input('TimeStart', sql.NVarChar, TimeStart)
       .input('Duration', sql.Int, Duration)
       .input('Location', sql.VarChar, Location)
       .input('CreatedBy', sql.Int, adminId)
-      .query(participationQuery);
-
-    res.status(201).json({ message: 'Participation added successfully.' });
-  } catch (error) {
-    console.error('Error adding participation:', error.message);
-    res.status(500).json({ message: 'Error adding participation', error: error.message });
-  }
-};
-
-// Update participation
-exports.updateParticipation = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { ChildId, ParticipationType, TeamNo, Date, TimeStart, Duration, Location } = req.body;
-
-    if (!id || !ChildId || !ParticipationType || !TeamNo || !Date || !TimeStart || !Duration || !Location) {
-      return res.status(400).json({ message: 'All fields are required for update.' });
-    }
-
-    const timeStartInt = parseTimeToInt(TimeStart);
-
-    const query = `
-      UPDATE Participation
-      SET ChildId = @ChildId, ParticipationType = @ParticipationType, TeamNo = @TeamNo, Date = @Date,
-          TimeStart = @TimeStart, Duration = @Duration, Location = @Location, UpdatedAt = GETDATE()
-      WHERE Id = @Id
-    `;
-    const pool = await sql.connect();
-    await pool.request()
-      .input('Id', sql.Int, id)
-      .input('ChildId', sql.Int, ChildId)
-      .input('ParticipationType', sql.VarChar, ParticipationType)
-      .input('TeamNo', sql.VarChar, TeamNo)
-      .input('Date', sql.Date, Date)
-      .input('TimeStart', sql.NVarChar, TimeStart)
-      .input('Duration', sql.Int, Duration)
-      .input('Location', sql.VarChar, Location)
       .query(query);
 
-    res.status(200).json({ message: 'Participation updated successfully.' });
+    res.status(201).json({ success: true, data: result.recordset[0] });
   } catch (error) {
-    console.error('Error updating participation:', error.message);
-    res.status(500).json({ message: 'Error updating participation', error: error.message });
-  }
-};
-
-// Delete participation
-exports.deleteParticipation = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Access denied. Only admins can delete participation.' });
-    }
-
-    const query = 'DELETE FROM Participation WHERE Id = @Id';
-    const pool = await sql.connect();
-    await pool.request().input('Id', sql.Int, id).query(query);
-
-    res.status(200).json({ message: 'Participation deleted successfully.' });
-  } catch (error) {
-    console.error('Error deleting participation:', error.message);
-    res.status(500).json({ message: 'Error deleting participation', error: error.message });
+    console.error('Error adding participation:', error.message);
+    res.status(500).json({ message: 'Error adding participation' });
   }
 };

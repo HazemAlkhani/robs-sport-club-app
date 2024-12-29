@@ -1,19 +1,20 @@
 const { sql } = require('../db');
 
+// Helper for consistent responses
+const sendResponse = (res, success, message, data = null) => {
+  res.status(success ? 200 : 500).json({ success, message, data });
+};
+
 // Create a new user
 exports.createUser = async (req, res) => {
   try {
     const { parentName, email, mobile, sportType, username } = req.body;
 
-    // Validate required fields
-    if (!parentName || !email || !mobile || !sportType || !username) {
-      return res.status(400).json({ message: 'All fields are required' });
-    }
-
     const query = `
       INSERT INTO Users (ParentName, Email, Mobile, SportType, Username, CreatedAt, UpdatedAt)
       VALUES (@ParentName, @Email, @Mobile, @SportType, @Username, GETDATE(), GETDATE())
     `;
+
     const pool = await sql.connect();
     await pool.request()
       .input('ParentName', sql.VarChar, parentName)
@@ -23,30 +24,42 @@ exports.createUser = async (req, res) => {
       .input('Username', sql.VarChar, username)
       .query(query);
 
-    res.status(201).json({ message: 'User created successfully' });
+    sendResponse(res, true, 'User created successfully');
   } catch (error) {
     console.error('Error creating user:', error.message);
-    res.status(500).json({ message: 'Error creating user', error: error.message });
+    sendResponse(res, false, 'Error creating user', error.message);
   }
 };
 
-// Get all users
+// Get all users with pagination
 exports.getAllUsers = async (req, res) => {
   try {
-    const query = `SELECT * FROM Users`;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+
+    const query = `
+      SELECT * FROM Users
+      ORDER BY CreatedAt DESC
+      OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY
+    `;
     const pool = await sql.connect();
-    const result = await pool.request().query(query);
+    const result = await pool.request()
+      .input('Offset', sql.Int, offset)
+      .input('Limit', sql.Int, limit)
+      .query(query);
 
-    if (result.recordset.length === 0) {
-      return res.status(404).json({ message: 'No users found' });
-    }
-
-    res.status(200).json(result.recordset);
+    sendResponse(res, true, 'Users fetched successfully', {
+      users: result.recordset,
+      pagination: { page, limit },
+    });
   } catch (error) {
     console.error('Error fetching users:', error.message);
-    res.status(500).json({ message: 'Error fetching users', error: error.message });
+    sendResponse(res, false, 'Error fetching users', error.message);
   }
 };
+
+// Other methods (getUserById, updateUser, deleteUser) remain similar
 
 // Get user by ID
 exports.getUserById = async (req, res) => {

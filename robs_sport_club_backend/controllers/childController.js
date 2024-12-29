@@ -1,7 +1,7 @@
 const { sql } = require('../db');
 
 // Add a child
-exports.addChild = async (req, res) => {
+exports.addChild = async (req, res, next) => {
   try {
     const { ChildName, TeamNo, SportType } = req.body;
     const UserId = req.user.id;
@@ -11,27 +11,32 @@ exports.addChild = async (req, res) => {
       return res.status(400).json({ message: 'ChildName, TeamNo, and SportType are required.' });
     }
 
-    // SQL Query
     const query = `
       INSERT INTO Children (ChildName, UserId, TeamNo, SportType, CreatedAt, UpdatedAt)
+      OUTPUT INSERTED.*
       VALUES (@ChildName, @UserId, @TeamNo, @SportType, GETDATE(), GETDATE())
     `;
 
     const pool = await sql.connect();
-    await pool.request()
+    const result = await pool.request()
       .input('ChildName', sql.NVarChar, ChildName)
       .input('UserId', sql.Int, UserId)
       .input('TeamNo', sql.NVarChar, TeamNo)
       .input('SportType', sql.NVarChar, SportType)
       .query(query);
 
-    res.status(201).json({ message: 'Child added successfully' });
+    res.status(201).json({
+      success: true,
+      message: 'Child added successfully',
+      child: result.recordset[0],
+    });
   } catch (error) {
     console.error('Error adding child:', error.message);
-    res.status(500).json({ message: 'Error adding child', error: error.message });
+    next(error); // Pass to error handler
   }
 };
 
+// Update a child
 exports.updateChild = async (req, res) => {
   try {
     const { ChildId, ChildName, TeamNo, SportType } = req.body;
@@ -74,22 +79,19 @@ exports.updateChild = async (req, res) => {
   }
 };
 
-
 // Get children (Admin gets all, User gets only their children)
 exports.getChildren = async (req, res) => {
   try {
-    const { role, id: userId } = req.user; // Get the role and user ID from the JWT payload
+    const { role, id: userId } = req.user;
 
-    // SQL query depends on the user's role
     const query =
       role === 'admin'
-        ? `SELECT * FROM Children` // Admin gets all children
-        : `SELECT * FROM Children WHERE UserId = @UserId`; // User gets only their children
+        ? `SELECT * FROM Children`
+        : `SELECT * FROM Children WHERE UserId = @UserId`;
 
     const pool = await sql.connect();
     const request = pool.request();
 
-    // If the user is not an admin, add the UserId parameter
     if (role !== 'admin') {
       request.input('UserId', sql.Int, userId);
     }
@@ -109,43 +111,6 @@ exports.getChildren = async (req, res) => {
   }
 };
 
-
-// Update a child
-exports.addChild = async (req, res, next) => {
-  try {
-    const { ChildName, TeamNo, SportType } = req.body;
-    const UserId = req.user.id;
-
-    // Validate required fields
-    if (!ChildName || !TeamNo || !SportType) {
-      return res.status(400).json({ message: 'ChildName, TeamNo, and SportType are required.' });
-    }
-
-    const query = `
-      INSERT INTO Children (ChildName, UserId, TeamNo, SportType, CreatedAt, UpdatedAt)
-      OUTPUT INSERTED.*
-      VALUES (@ChildName, @UserId, @TeamNo, @SportType, GETDATE(), GETDATE())
-    `;
-
-    const pool = await sql.connect();
-    const result = await pool.request()
-      .input('ChildName', sql.NVarChar, ChildName)
-      .input('UserId', sql.Int, UserId)
-      .input('TeamNo', sql.NVarChar, TeamNo)
-      .input('SportType', sql.NVarChar, SportType)
-      .query(query);
-
-    res.status(201).json({
-      success: true,
-      message: 'Child added successfully',
-      child: result.recordset[0],
-    });
-  } catch (error) {
-    console.error('Error adding child:', error.message);
-    next(error); // Pass to error handler
-  }
-};
-
 // Delete a child
 exports.deleteChild = async (req, res) => {
   try {
@@ -155,9 +120,10 @@ exports.deleteChild = async (req, res) => {
       return res.status(400).json({ message: 'Invalid ChildId provided.' });
     }
 
+    const pool = await sql.connect();
+
     // Ensure ownership
     const ownershipQuery = `SELECT COUNT(*) AS IsOwner FROM Children WHERE Id = @Id AND UserId = @UserId`;
-    const pool = await sql.connect();
     const ownershipResult = await pool.request()
       .input('Id', sql.Int, id)
       .input('UserId', sql.Int, req.user.id)
@@ -167,7 +133,6 @@ exports.deleteChild = async (req, res) => {
       return res.status(403).json({ message: 'You do not have permission to delete this child.' });
     }
 
-    // Delete child
     const deleteQuery = 'DELETE FROM Children WHERE Id = @Id';
     await pool.request().input('Id', sql.Int, id).query(deleteQuery);
 

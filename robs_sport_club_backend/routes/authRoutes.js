@@ -2,6 +2,8 @@ const express = require('express');
 const { body } = require('express-validator');
 const authController = require('../controllers/authController');
 const validateRequest = require('../middleware/validateRequest'); // Middleware to handle validation errors
+const rateLimiter = require('../middleware/rateLimiter');
+
 
 const router = express.Router();
 
@@ -18,6 +20,7 @@ const registerValidation = [
   body('role').isIn(['admin', 'user']).withMessage('Role must be "admin" or "user"'),
 ];
 
+
 // Registration route
 router.post(
   '/register',
@@ -32,9 +35,10 @@ const loginValidation = [
   body('password').notEmpty().withMessage('Password is required'),
 ];
 
-// Login route
+// Login route with optional rate limiter
 router.post(
   '/login',
+  rateLimiter, // Prevent brute force attacks
   loginValidation,
   validateRequest, // Middleware to handle validation errors
   authController.login

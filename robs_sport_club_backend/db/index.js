@@ -3,13 +3,13 @@ require('dotenv').config(); // Load environment variables
 
 // Database configuration
 const dbConfig = {
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  server: process.env.DB_SERVER,
-  database: process.env.DB_NAME,
+  user: process.env.DB_USER || 'defaultUser',
+  password: process.env.DB_PASSWORD || 'defaultPassword',
+  server: process.env.DB_SERVER || 'localhost',
+  database: process.env.DB_NAME || 'defaultDB',
   options: {
-    encrypt: false, // Adjust if necessary
-    trustServerCertificate: true, // For local dev
+    encrypt: process.env.NODE_ENV === 'production', // Encrypt in production
+    trustServerCertificate: process.env.NODE_ENV !== 'production', // Trust for dev
   },
   pool: {
     max: parseInt(process.env.DB_POOL_MAX, 10) || 10,
@@ -19,8 +19,9 @@ const dbConfig = {
   connectionTimeout: parseInt(process.env.DB_CONNECT_TIMEOUT, 10) || 15000,
 };
 
-// Debugging the configuration
-console.log('Database Configuration:', dbConfig);
+// Secure Debugging
+const secureConfig = { ...dbConfig, password: '********' };
+console.log('Database Configuration:', secureConfig);
 
 // Function to connect to the database
 const connectDB = async () => {
@@ -43,8 +44,20 @@ const disconnectDB = async () => {
   }
 };
 
+// Function to check database connection
+const checkDatabaseConnection = async () => {
+  try {
+    const pool = await sql.connect(dbConfig);
+    await pool.close(); // Test and close immediately
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 module.exports = {
   connectDB,
   disconnectDB,
+  checkDatabaseConnection,
   sql,
 };

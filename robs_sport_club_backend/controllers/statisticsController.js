@@ -1,15 +1,20 @@
 const { sql } = require('../db');
 
-// Helper function to fetch data from the database
+// Enhanced helper function with error handling
 const executeQuery = async (query, params = []) => {
-  const pool = await sql.connect();
-  const request = pool.request();
+  try {
+    const pool = await sql.connect();
+    const request = pool.request();
 
-  params.forEach(({ name, type, value }) => {
-    request.input(name, type, value);
-  });
+    params.forEach(({ name, type, value }) => {
+      request.input(name, type, value);
+    });
 
-  return request.query(query);
+    return await request.query(query);
+  } catch (error) {
+    console.error('Database query failed:', error.message);
+    throw new Error('Database operation failed.');
+  }
 };
 
 // Get statistics for a specific child
@@ -17,8 +22,8 @@ exports.getChildStatistics = async (req, res) => {
   try {
     const { childId } = req.params;
 
-    if (!childId) {
-      return res.status(400).json({ success: false, message: 'Child ID is required.' });
+    if (!childId || isNaN(childId)) {
+      return res.status(400).json({ success: false, message: 'Valid Child ID is required.' });
     }
 
     const query = `
@@ -77,7 +82,11 @@ exports.getAllStatistics = async (req, res) => {
 // Get statistics for a user's children
 exports.getUserStatistics = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized access.' });
+    }
 
     const query = `
       SELECT cs.ChildId, c.ChildName,
@@ -89,6 +98,10 @@ exports.getUserStatistics = async (req, res) => {
     `;
 
     const result = await executeQuery(query, [{ name: 'UserId', type: sql.Int, value: userId }]);
+
+    if (result.recordset.length === 0) {
+      return res.status(404).json({ success: false, message: 'No statistics found for your children.' });
+    }
 
     res.status(200).json({ success: true, data: result.recordset });
   } catch (error) {

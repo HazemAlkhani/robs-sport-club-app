@@ -6,8 +6,8 @@ const { authenticateUser } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
-// Define validation rules
-const userValidation = [
+// Validation rules for creating a user
+const createUserValidation = [
   body('parentName').notEmpty().withMessage('Parent name is required'),
   body('email').isEmail().withMessage('Valid email is required'),
   body('mobile').notEmpty().withMessage('Mobile number is required'),
@@ -15,10 +15,38 @@ const userValidation = [
   body('username').notEmpty().withMessage('Username is required'),
 ];
 
+// Validation rules for updating a user
+const updateUserValidation = [
+  body('parentName').optional().notEmpty().withMessage('Parent name cannot be empty'),
+  body('email').optional().isEmail().withMessage('Valid email is required'),
+  body('mobile').optional().notEmpty().withMessage('Mobile number cannot be empty'),
+  body('sportType').optional().notEmpty().withMessage('Sport type cannot be empty'),
+  body('username').optional().notEmpty().withMessage('Username cannot be empty'),
+];
+
 // Define routes
-router.post('/add', authenticateUser, userValidation, validateRequest, userController.createUser); // Add user
+router.post(
+  '/add',
+  authenticateUser,
+  createUserValidation,
+  validateRequest,
+  userController.createUser
+); // Add user
+
 router.get('/all', authenticateUser, userController.getAllUsers); // Get all users
-router.put('/update/:id', authenticateUser, userValidation, validateRequest, userController.updateUser); // Update user
-router.delete('/delete/:id', authenticateUser, userController.deleteUser); // Delete user
+
+router.put(
+  '/update/:id',
+  authenticateUser,
+  updateUserValidation,
+  validateRequest,
+  userController.updateUser
+); // Update user
+
+router.delete(
+  '/delete/:id',
+  authenticateUser,
+  userController.deleteUser
+); // Delete user
 
 module.exports = router;

@@ -13,7 +13,6 @@ const participationRoutes = require('./routes/participationRoutes');
 const requestLogger = require('./middleware/requestLogger');
 const statisticsRouter = require('./routes/statisticsRouter');
 
-
 const app = express();
 
 // Validate required environment variables
@@ -40,11 +39,11 @@ requiredVars.forEach((key) => {
 app.use(express.json()); // Parse JSON request bodies
 app.use(
   cors({
-    origin: '*', // Adjust based on your frontend's domain for stricter security
+    origin: process.env.CORS_ALLOWED_ORIGINS?.split(',') || '*', // Adjust based on environment
     methods: 'GET,POST,PUT,DELETE',
     allowedHeaders: 'Content-Type,Authorization',
   })
-); // Enable CORS
+);
 app.use(helmet()); // Set security headers
 app.use(morgan('combined')); // Log HTTP requests
 app.use(rateLimiter); // Protect against rate-based attacks
@@ -74,15 +73,17 @@ app.use('/users', userRoutes);
 app.use('/participations', participationRoutes);
 app.use('/statistics', statisticsRouter);
 
-
 // Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'Healthy',
-    uptime: process.uptime(),
-    timestamp: new Date(),
-    message: 'RØBS Sport Club Management API is running smoothly',
-  });
+app.get('/health', async (req, res) => {
+  const checkDatabaseConnection = async () => {
+    try {
+      await sql.connect(); // Adjust based on your DB client
+      return true;
+    } catch (error) {
+      console.error('Database health check failed:', error.message);
+      return false;
+    }
+  };
 });
 
 // Handle 404 Not Found
@@ -97,18 +98,22 @@ app.use(errorHandler);
 
 // Graceful shutdown
 const gracefulShutdown = async (signal) => {
-  console.log(`${signal} received: Shutting down server...`);
+  console.log(`[${new Date().toISOString()}] ${signal} received: Shutting down server...`);
   try {
     await disconnectDB();
-    console.log('Database disconnected successfully.');
+    console.log(`[${new Date().toISOString()}] Database disconnected successfully.`);
     process.exit(0);
   } catch (err) {
-    console.error('Error during shutdown:', err.message);
+    console.error(`[${new Date().toISOString()}] Error during shutdown: ${err.message}`);
     process.exit(1);
   }
 };
 
-
+app.use(
+  helmet({
+    contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false,
+  })
+);
 
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
@@ -119,3 +124,5 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
+
+app.disable('x-powered-by'); // Hide Express.js usage from attackers
