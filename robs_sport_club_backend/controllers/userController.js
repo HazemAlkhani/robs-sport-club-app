@@ -5,29 +5,38 @@ const sendResponse = (res, success, message, data = null) => {
   res.status(success ? 200 : 500).json({ success, message, data });
 };
 
-// Create a new user
-exports.createUser = async (req, res) => {
+// Register a User or Admin
+exports.register = async (req, res) => {
   try {
-    const { parentName, email, mobile, sportType, username } = req.body;
+    const { name, email, password, mobile, role } = req.body;
+
+    if (!['admin', 'user'].includes(role)) {
+      return sendResponse(res, false, 'Invalid role. Role must be "admin" or "user".');
+    }
+
+    const tableName = role === 'admin' ? 'Admins' : 'Users';
+    const columns = role === 'admin'
+      ? 'Name, Email, Password, Mobile, Role, CreatedAt, UpdatedAt'
+      : 'ParentName, Email, Password, Mobile, Role, CreatedAt, UpdatedAt';
 
     const query = `
-      INSERT INTO Users (ParentName, Email, Mobile, SportType, Username, CreatedAt, UpdatedAt)
-      VALUES (@ParentName, @Email, @Mobile, @SportType, @Username, GETDATE(), GETDATE())
+      INSERT INTO ${tableName} (${columns})
+      VALUES (@Name, @Email, @Password, @Mobile, @Role, GETDATE(), GETDATE())
     `;
 
     const pool = await sql.connect();
     await pool.request()
-      .input('ParentName', sql.VarChar, parentName)
+      .input('Name', sql.VarChar, name)
       .input('Email', sql.VarChar, email)
+      .input('Password', sql.VarChar, password)
       .input('Mobile', sql.VarChar, mobile)
-      .input('SportType', sql.VarChar, sportType)
-      .input('Username', sql.VarChar, username)
+      .input('Role', sql.VarChar, role)
       .query(query);
 
-    sendResponse(res, true, 'User created successfully');
+    sendResponse(res, true, `${role.charAt(0).toUpperCase() + role.slice(1)} registered successfully.`);
   } catch (error) {
-    console.error('Error creating user:', error.message);
-    sendResponse(res, false, 'Error creating user', error.message);
+    console.error('Error registering user/admin:', error.message);
+    sendResponse(res, false, 'Error registering user/admin', error.message);
   }
 };
 

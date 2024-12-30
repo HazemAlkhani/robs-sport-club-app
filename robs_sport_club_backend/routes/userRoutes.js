@@ -1,18 +1,20 @@
 const express = require('express');
-const { body } = require('express-validator');
+const { body, param } = require('express-validator');
 const userController = require('../controllers/userController');
 const validateRequest = require('../middleware/validateRequest');
 const { authenticateUser } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
-// Validation rules for creating a user
-const createUserValidation = [
-  body('parentName').notEmpty().withMessage('Parent name is required'),
+// Validation rules for registration
+const registrationValidation = [
+  body('name').notEmpty().withMessage('Name is required'),
   body('email').isEmail().withMessage('Valid email is required'),
+  body('password')
+    .isLength({ min: 6 })
+    .withMessage('Password must be at least 6 characters long'),
   body('mobile').notEmpty().withMessage('Mobile number is required'),
-  body('sportType').notEmpty().withMessage('Sport type is required'),
-  body('username').notEmpty().withMessage('Username is required'),
+  body('role').isIn(['user', 'admin']).withMessage('Role must be either "user" or "admin"'),
 ];
 
 // Validation rules for updating a user
@@ -21,32 +23,41 @@ const updateUserValidation = [
   body('email').optional().isEmail().withMessage('Valid email is required'),
   body('mobile').optional().notEmpty().withMessage('Mobile number cannot be empty'),
   body('sportType').optional().notEmpty().withMessage('Sport type cannot be empty'),
-  body('username').optional().notEmpty().withMessage('Username cannot be empty'),
+];
+
+// Validation rule for deleting a user by ID
+const deleteUserValidation = [
+  param('id').isInt().withMessage('User ID must be a valid integer'),
 ];
 
 // Define routes
+// Register user or admin
 router.post(
-  '/add',
-  authenticateUser,
-  createUserValidation,
+  '/register',
+  registrationValidation,
   validateRequest,
-  userController.createUser
-); // Add user
+  userController.register
+);
 
-router.get('/all', authenticateUser, userController.getAllUsers); // Get all users
+// Get all users
+router.get('/all', authenticateUser, userController.getAllUsers);
 
+// Update user
 router.put(
   '/update/:id',
   authenticateUser,
   updateUserValidation,
   validateRequest,
   userController.updateUser
-); // Update user
+);
 
+// Delete user
 router.delete(
   '/delete/:id',
   authenticateUser,
+  deleteUserValidation,
+  validateRequest,
   userController.deleteUser
-); // Delete user
+);
 
 module.exports = router;

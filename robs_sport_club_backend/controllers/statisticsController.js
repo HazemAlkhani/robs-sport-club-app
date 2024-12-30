@@ -23,11 +23,13 @@ exports.getChildStatistics = async (req, res) => {
     const { childId } = req.params;
 
     if (!childId || isNaN(childId)) {
+      console.warn('Invalid childId provided:', childId);
       return res.status(400).json({ success: false, message: 'Valid Child ID is required.' });
     }
 
     const query = `
-      SELECT ChildId, ISNULL(TotalTrainingHours, 0) AS TrainingHours,
+      SELECT ChildId,
+             ISNULL(TotalTrainingHours, 0) AS TrainingHours,
              ISNULL(TotalMatchHours, 0) AS MatchHours
       FROM ChildrinStatistics
       WHERE ChildId = @ChildId
@@ -39,9 +41,8 @@ exports.getChildStatistics = async (req, res) => {
       return res.status(404).json({ success: false, message: 'No statistics found for this child.' });
     }
 
-    res.status(200).json({ success: true, data: result.recordset });
+    res.status(200).json({ success: true, data: result.recordset[0] });
   } catch (error) {
-    console.error('Error fetching child statistics:', error.message);
     res.status(500).json({ success: false, message: 'Error fetching statistics', error: error.message });
   }
 };
@@ -49,7 +50,8 @@ exports.getChildStatistics = async (req, res) => {
 // Get all statistics (admin only)
 exports.getAllStatistics = async (req, res) => {
   try {
-    const { childName } = req.query;
+    const { childName, page = 1, limit = 10 } = req.query;
+    const offset = (page - 1) * limit;
 
     const query = childName
       ? `
@@ -59,6 +61,8 @@ exports.getAllStatistics = async (req, res) => {
         FROM ChildrinStatistics cs
         INNER JOIN Children c ON cs.ChildId = c.Id
         WHERE c.ChildName LIKE '%' + @ChildName + '%'
+        ORDER BY c.ChildName
+        OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY
       `
       : `
         SELECT cs.ChildId, c.ChildName,
@@ -66,15 +70,37 @@ exports.getAllStatistics = async (req, res) => {
                ISNULL(cs.TotalMatchHours, 0) AS MatchHours
         FROM ChildrinStatistics cs
         INNER JOIN Children c ON cs.ChildId = c.Id
+        ORDER BY c.ChildName
+        OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY
       `;
 
-    const params = childName ? [{ name: 'ChildName', type: sql.VarChar, value: childName }] : [];
+    const params = childName
+      ? [
+          { name: 'ChildName', type: sql.VarChar, value: childName },
+          { name: 'Offset', type: sql.Int, value: offset },
+          { name: 'Limit', type: sql.Int, value: parseInt(limit) },
+        ]
+      : [
+          { name: 'Offset', type: sql.Int, value: offset },
+          { name: 'Limit', type: sql.Int, value: parseInt(limit) },
+        ];
 
     const result = await executeQuery(query, params);
 
-    res.status(200).json({ success: true, data: result.recordset });
+    if (result.recordset.length === 0) {
+      return res.status(404).json({ success: false, message: 'No statistics found.' });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: result.recordset,
+      pagination: {
+        currentPage: parseInt(page),
+        itemsPerPage: parseInt(limit),
+        totalItems: result.recordset.length,
+      },
+    });
   } catch (error) {
-    console.error('Error fetching all statistics:', error.message);
     res.status(500).json({ success: false, message: 'Error fetching statistics', error: error.message });
   }
 };
@@ -105,7 +131,6 @@ exports.getUserStatistics = async (req, res) => {
 
     res.status(200).json({ success: true, data: result.recordset });
   } catch (error) {
-    console.error('Error fetching user statistics:', error.message);
     res.status(500).json({ success: false, message: 'Error fetching statistics', error: error.message });
   }
 };

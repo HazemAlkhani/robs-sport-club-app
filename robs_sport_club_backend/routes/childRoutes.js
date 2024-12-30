@@ -2,7 +2,7 @@ const express = require('express');
 const { body, param } = require('express-validator');
 const childController = require('../controllers/childController');
 const validateRequest = require('../middleware/validateRequest');
-const authenticateUser = require('../middleware/auth');
+const { authenticateUser, isAdmin } = require('../middleware/authMiddleware');
 const rateLimiter = require('../middleware/rateLimiter');
 
 // Validation rules for child operations

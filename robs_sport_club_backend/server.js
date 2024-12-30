@@ -12,6 +12,7 @@ const userRoutes = require('./routes/userRoutes');
 const participationRoutes = require('./routes/participationRoutes');
 const requestLogger = require('./middleware/requestLogger');
 const statisticsRouter = require('./routes/statisticsRouter');
+const sql = require('./db');
 
 const app = express();
 
@@ -36,18 +37,18 @@ requiredVars.forEach((key) => {
 })();
 
 // Middleware setup
-app.use(express.json()); // Parse JSON request bodies
+app.use(express.json());
 app.use(
   cors({
-    origin: process.env.CORS_ALLOWED_ORIGINS?.split(',') || '*', // Adjust based on environment
+    origin: process.env.CORS_ALLOWED_ORIGINS?.split(',') || '*',
     methods: 'GET,POST,PUT,DELETE',
     allowedHeaders: 'Content-Type,Authorization',
   })
 );
-app.use(helmet()); // Set security headers
-app.use(morgan('combined')); // Log HTTP requests
-app.use(rateLimiter); // Protect against rate-based attacks
-app.use(requestLogger); // Log request details for debugging
+app.use(helmet({ contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false }));
+app.use(morgan('combined'));
+app.use(rateLimiter);
+app.use(requestLogger);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -75,15 +76,26 @@ app.use('/statistics', statisticsRouter);
 
 // Health check endpoint
 app.get('/health', async (req, res) => {
-  const checkDatabaseConnection = async () => {
-    try {
-      await sql.connect(); // Adjust based on your DB client
-      return true;
-    } catch (error) {
-      console.error('Database health check failed:', error.message);
-      return false;
-    }
-  };
+  try {
+    const pool = await sql.connect();
+    await pool.close();
+    res.status(200).json({
+      status: 'Healthy',
+      uptime: process.uptime(),
+      timestamp: new Date(),
+      database: 'Connected',
+      message: 'RØBS Sport Club Management API is running smoothly',
+    });
+  } catch (error) {
+    console.error('Database health check failed:', error.message);
+    res.status(500).json({
+      status: 'Unhealthy',
+      uptime: process.uptime(),
+      timestamp: new Date(),
+      database: 'Disconnected',
+      message: 'Error connecting to the database',
+    });
+  }
 });
 
 // Handle 404 Not Found
@@ -93,7 +105,7 @@ app.use((req, res) => {
   });
 });
 
-// Handle errors
+// Error handling middleware
 app.use(errorHandler);
 
 // Graceful shutdown
@@ -109,18 +121,11 @@ const gracefulShutdown = async (signal) => {
   }
 };
 
-app.use(
-  helmet({
-    contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false,
-  })
-);
-
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
 // Start the server
 const PORT = process.env.PORT || 5000;
-
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });

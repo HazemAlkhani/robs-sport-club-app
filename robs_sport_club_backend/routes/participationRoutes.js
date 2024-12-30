@@ -1,20 +1,24 @@
 const express = require('express');
-const { body, param, query } = require('express-validator');
+const { body, param } = require('express-validator');
 const participationController = require('../controllers/participationController');
 const { authenticateUser } = require('../middleware/authMiddleware');
 const validateRequest = require('../middleware/validateRequest');
 
 const router = express.Router();
 
-// Middleware to log incoming requests
+/**
+ * Middleware to log incoming requests
+ */
 router.use((req, res, next) => {
-  const user = req.user ? `User: ${req.user.email} (${req.user.role})` : 'Unauthenticated';
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - ${user}`);
+  const userInfo = req.user ? `User: ${req.user.email} (${req.user.role})` : 'Unauthenticated';
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - ${userInfo}`);
   console.log('Request Body:', req.body);
   next();
 });
 
-// Validation rules
+/**
+ * Validation rules
+ */
 const participationValidation = [
   body('ChildName').notEmpty().withMessage('Child name is required'),
   body('ParticipationType')
@@ -26,7 +30,11 @@ const participationValidation = [
   body('Location').notEmpty().withMessage('Location is required'),
 ];
 
-// Admin routes
+/**
+ * Routes
+ */
+
+// Add a new participation (Admin only)
 router.post(
   '/add',
   authenticateUser,
@@ -35,8 +43,14 @@ router.post(
   participationController.addParticipation
 );
 
-router.get('/all', authenticateUser, participationController.getAllParticipations);
+// Get all participations (Admin: all, User: own)
+router.get(
+  '/all',
+  authenticateUser,
+  participationController.getAllParticipations
+);
 
+// Update participation by ID (Admin only)
 router.put(
   '/update/:id',
   authenticateUser,
@@ -48,6 +62,7 @@ router.put(
   participationController.updateParticipation
 );
 
+// Delete participation by ID (Admin only)
 router.delete(
   '/delete/:id',
   authenticateUser,
@@ -55,47 +70,5 @@ router.delete(
   validateRequest,
   participationController.deleteParticipation
 );
-
-router.get('/teams', authenticateUser, async (req, res, next) => {
-  try {
-    const teams = await participationController.getTeams(req);
-    res.status(200).json({ success: true, data: teams });
-  } catch (error) {
-    console.error('Error fetching teams:', error.message);
-    next(error);
-  }
-});
-
-router.get('/children/:teamNo', authenticateUser, async (req, res, next) => {
-  try {
-    const { teamNo } = req.params;
-    const children = await participationController.getChildrenByTeam(teamNo);
-    res.status(200).json({ success: true, data: children });
-  } catch (error) {
-    console.error('Error fetching children:', error.message);
-    next(error);
-  }
-});
-
-// User-specific routes
-router.get('/my-children', authenticateUser, async (req, res, next) => {
-  try {
-    const participations = await participationController.getParticipationByUser(req);
-    res.status(200).json({ success: true, data: participations });
-  } catch (error) {
-    console.error('Error fetching participation by user:', error.message);
-    next(error);
-  }
-});
-
-router.get('/child-statistics', authenticateUser, async (req, res, next) => {
-  try {
-    const statistics = await participationController.getChildStatistics(req, res);
-    res.status(200).json({ success: true, data: statistics });
-  } catch (error) {
-    console.error('Error fetching child statistics:', error.message);
-    next(error);
-  }
-});
 
 module.exports = router;
