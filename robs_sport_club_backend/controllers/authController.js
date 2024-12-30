@@ -103,3 +103,117 @@ exports.login = async (req, res) => {
     res.status(500).json({ message: 'Error logging in', error: error.message });
   }
 };
+
+// Update Admin or User
+exports.updateProfile = async (req, res) => {
+  try {
+    const { id, role, name, email, password, mobile } = req.body;
+
+    const pool = await sql.connect();
+
+    // Determine the table to update based on role
+    const table = role === 'admin' ? 'Admins' : 'Users';
+    const nameField = role === 'admin' ? 'Name' : 'ParentName';
+
+    // Check if email is already used by another account
+    const emailCheckQuery = `
+      SELECT Id FROM ${table} WHERE Email = @Email AND Id != @Id
+    `;
+    const emailCheckResult = await pool.request()
+      .input('Email', sql.VarChar, email)
+      .input('Id', sql.Int, id)
+      .query(emailCheckQuery);
+
+    if (emailCheckResult.recordset.length > 0) {
+      return res.status(400).json({ message: 'Email already in use by another account' });
+    }
+
+    // Hash the password if provided
+    let hashedPassword = null;
+    if (password) {
+      hashedPassword = await bcrypt.hash(password, 10);
+    }
+
+    // Update query
+    const updateQuery = `
+      UPDATE ${table}
+      SET ${nameField} = @Name,
+          Email = @Email,
+          Mobile = @Mobile,
+          ${password ? 'Password = @Password,' : ''}
+          UpdatedAt = GETDATE()
+      WHERE Id = @Id
+    `;
+
+    await pool.request()
+      .input('Name', sql.VarChar, name)
+      .input('Email', sql.VarChar, email)
+      .input('Mobile', sql.VarChar, mobile)
+      .input('Password', sql.VarChar, hashedPassword)
+      .input('Id', sql.Int, id)
+      .query(updateQuery);
+
+    res.status(200).json({ message: `${role === 'admin' ? 'Admin' : 'User'} profile updated successfully` });
+  } catch (error) {
+    console.error('Error updating profile:', error.message);
+    res.status(500).json({ message: 'Error updating profile', error: error.message });
+  }
+};
+
+// Get Admin by ID
+exports.getAdminById = async (req, res) => {
+  const { adminId } = req.params;
+  try {
+    const pool = await sql.connect();
+    const result = await pool.request()
+      .input('Id', sql.Int, adminId)
+      .query('SELECT * FROM Admins WHERE Id = @Id');
+    if (result.recordset.length === 0) {
+      return res.status(404).json({ message: 'Admin not found' });
+    }
+    res.status(200).json({ data: result.recordset[0] });
+  } catch (error) {
+    console.error('Error fetching admin:', error.message);
+    res.status(500).json({ message: 'Error fetching admin details' });
+  }
+};
+
+// Update Admin
+exports.updateAdmin = async (req, res) => {
+  const { adminId } = req.params;
+  const { email, mobile, password } = req.body;
+
+  try {
+    const pool = await sql.connect();
+
+    // Hash password if provided
+    let hashedPassword = null;
+    if (password) {
+      hashedPassword = await bcrypt.hash(password, 10);
+    }
+
+    // Update query
+    const updateQuery = `
+      UPDATE Admins
+      SET Email = @Email,
+          Mobile = @Mobile,
+          ${password ? 'Password = @Password,' : ''}
+          UpdatedAt = GETDATE()
+      WHERE Id = @Id
+    `;
+
+    await pool.request()
+      .input('Id', sql.Int, adminId)
+      .input('Email', sql.VarChar, email)
+      .input('Mobile', sql.VarChar, mobile)
+      .input('Password', sql.VarChar, hashedPassword || null)
+      .query(updateQuery);
+
+    res.status(200).json({ message: 'Admin details updated successfully' });
+  } catch (error) {
+    console.error('Error updating admin:', error.message);
+    res.status(500).json({ message: 'Error updating admin details' });
+  }
+
+};
+

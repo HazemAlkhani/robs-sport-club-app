@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../services/api_service.dart';
 
 class EditParticipationScreen extends StatefulWidget {
   final Map<String, dynamic> participation;
@@ -6,26 +7,41 @@ class EditParticipationScreen extends StatefulWidget {
   const EditParticipationScreen({Key? key, required this.participation}) : super(key: key);
 
   @override
-  EditParticipationScreenState createState() =>
-      EditParticipationScreenState();
+  State<EditParticipationScreen> createState() => _EditParticipationScreenState();
 }
 
-class EditParticipationScreenState extends State<EditParticipationScreen> {
-  late TextEditingController childNameController;
+class _EditParticipationScreenState extends State<EditParticipationScreen> {
   late TextEditingController dateController;
   late TextEditingController timeController;
-  late TextEditingController durationController;
   late TextEditingController locationController;
 
   @override
   void initState() {
     super.initState();
-    final participation = widget.participation;
-    childNameController = TextEditingController(text: participation['childName']);
-    dateController = TextEditingController(text: participation['date']);
-    timeController = TextEditingController(text: participation['timeStart']);
-    durationController = TextEditingController(text: participation['duration'].toString());
-    locationController = TextEditingController(text: participation['location']);
+    dateController = TextEditingController(text: widget.participation['date']);
+    timeController = TextEditingController(text: widget.participation['timeStart']);
+    locationController = TextEditingController(text: widget.participation['location']);
+  }
+
+  Future<void> updateParticipation() async {
+    final updatedParticipation = {
+      'id': widget.participation['id'],
+      'date': dateController.text,
+      'timeStart': timeController.text,
+      'location': locationController.text,
+    };
+
+    try {
+      await ApiService.updateParticipation(updatedParticipation);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Participation updated successfully!')),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update participation: $e')),
+      );
+    }
   }
 
   @override
@@ -37,47 +53,21 @@ class EditParticipationScreenState extends State<EditParticipationScreen> {
         child: Column(
           children: [
             TextField(
-              controller: childNameController,
-              decoration: const InputDecoration(labelText: 'Child Name'),
-            ),
-            const SizedBox(height: 16),
-            TextField(
               controller: dateController,
-              decoration: const InputDecoration(labelText: 'Date'),
-              onTap: () async {
-                final pickedDate = await showDatePicker(
-                  context: context,
-                  initialDate: DateTime.parse(dateController.text),
-                  firstDate: DateTime(2020),
-                  lastDate: DateTime(2030),
-                );
-                if (pickedDate != null) {
-                  dateController.text = pickedDate.toIso8601String();
-                }
-              },
+              decoration: const InputDecoration(labelText: 'Date (YYYY-MM-DD)'),
             ),
-            const SizedBox(height: 16),
             TextField(
               controller: timeController,
-              decoration: const InputDecoration(labelText: 'Start Time (HH:mm)'),
+              decoration: const InputDecoration(labelText: 'Start Time (HH:MM)'),
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: durationController,
-              decoration: const InputDecoration(labelText: 'Duration (minutes)'),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 16),
             TextField(
               controller: locationController,
               decoration: const InputDecoration(labelText: 'Location'),
             ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: () {
-                updateParticipation(); // Replace with your API/service method
-              },
-              child: const Text('Update'),
+              onPressed: updateParticipation,
+              child: const Text('Save Changes'),
             ),
           ],
         ),
@@ -85,7 +75,11 @@ class EditParticipationScreenState extends State<EditParticipationScreen> {
     );
   }
 
-  void updateParticipation() {
-    // Implement your API call to update participation
+  @override
+  void dispose() {
+    dateController.dispose();
+    timeController.dispose();
+    locationController.dispose();
+    super.dispose();
   }
 }

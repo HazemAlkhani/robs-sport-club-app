@@ -251,6 +251,31 @@ class ApiService {
     }
   }
 
+  static Future<void> updateParticipation(Map<String, dynamic> updatedParticipation) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/participations/update/${updatedParticipation['id']}'),
+      headers: getHeaders(),
+      body: jsonEncode(updatedParticipation),
+    );
+    logResponse(response);
+    if (response.statusCode != 200) {
+      throw Exception('Failed to update participation: ${response.body}');
+    }
+  }
+
+
+  static Future<void> deleteParticipation(int participationId) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/participations/delete/$participationId'),
+      headers: getHeaders(),
+    );
+    logResponse(response);
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete participation: ${response.body}');
+    }
+  }
+
+
 
   // ===================
   // Statistics Management
@@ -284,5 +309,82 @@ class ApiService {
       throw Exception('Failed to fetch all statistics: ${response.body}');
     }
   }
+
+  //Admin
+// Fetch Admin Details
+  static Future<Map<String, dynamic>> getAdminDetails(int adminId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/admins/$adminId'),
+      headers: getHeaders(),
+    );
+    logResponse(response);
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body)['data'];
+    } else {
+      throw Exception('Failed to fetch admin details: ${response.body}');
+    }
+  }
+
+// Update Admin Details
+  static Future<void> updateAdminDetails({
+    required int adminId,
+    required String email,
+    required String mobile,
+    String? password,
+  }) async {
+    final data = {
+      'email': email,
+      'mobile': mobile,
+      if (password != null) 'password': password, // Include password only if provided
+    };
+
+    final response = await http.put(
+      Uri.parse('$baseUrl/admins/update/$adminId'),
+      headers: getHeaders(),
+      body: jsonEncode(data),
+    );
+    logResponse(response);
+    if (response.statusCode != 200) {
+      throw Exception('Failed to update admin details: ${response.body}');
+    }
+  }
+
+
+  //Admin and User
+// Fetch Details (Generic for Admin/User)
+  static Future<Map<String, dynamic>> getDetails({
+    required int id,
+    required String type, // 'admins' or 'users'
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/$type/$id'),
+      headers: getHeaders(),
+    );
+    logResponse(response);
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body)['data'];
+    } else {
+      throw Exception('Failed to fetch $type details: ${response.body}');
+    }
+  }
+
+// Update Details (Generic for Admin/User)
+  static Future<void> updateDetails({
+    required int id,
+    required String type, // 'admins' or 'users'
+    required Map<String, dynamic> data,
+  }) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/$type/update/$id'),
+      headers: getHeaders(),
+      body: jsonEncode(data),
+    );
+    logResponse(response);
+    if (response.statusCode != 200) {
+      throw Exception('Failed to update $type details: ${response.body}');
+    }
+  }
+
+
 
 }

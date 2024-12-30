@@ -1,11 +1,11 @@
 class Participation {
   final String id;
   final String childName;
-  final String participationType;
+  final String participationType; // Should be "Training" or "Match"
   final String teamNo;
   final String date;
   final String timeStart;
-  final int duration; // Updated to int
+  final int duration; // Duration in minutes
   final String location;
   final String coach;
 
@@ -22,20 +22,33 @@ class Participation {
   });
 
   factory Participation.fromJson(Map<String, dynamic> json) {
+    final participationType = json['ParticipationType'] ?? '';
+    if (participationType != 'Training' && participationType != 'Match') {
+      throw FormatException(
+          'Invalid participation type: $participationType. It must be "Training" or "Match".');
+    }
+
     return Participation(
-      id: json['Id'] ?? '',
+      id: json['Id']?.toString() ?? '', // Ensure id is always a string
       childName: json['ChildName'] ?? '',
-      participationType: json['ParticipationType'] ?? '',
+      participationType: participationType,
       teamNo: json['TeamNo'] ?? '',
       date: json['Date'] ?? '',
       timeStart: json['TimeStart'] ?? '',
-      duration: json['Duration'] != null ? int.tryParse(json['Duration'].toString()) ?? 0 : 0,
+      duration: json['Duration'] != null
+          ? int.tryParse(json['Duration'].toString()) ?? 0
+          : 0,
       location: json['Location'] ?? '',
       coach: json['Coach'] ?? '',
     );
   }
 
   Map<String, dynamic> toJson() {
+    if (participationType != 'Training' && participationType != 'Match') {
+      throw FormatException(
+          'Invalid participation type: $participationType. It must be "Training" or "Match".');
+    }
+
     return {
       'Id': id,
       'ChildName': childName,

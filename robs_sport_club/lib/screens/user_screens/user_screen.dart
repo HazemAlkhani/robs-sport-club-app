@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../child_screens/select_child_screen.dart';
+import '../user_screens/manage_user_screen.dart';
 
 class UserScreen extends StatelessWidget {
   final int userId;
@@ -20,31 +21,114 @@ class UserScreen extends StatelessWidget {
     );
   }
 
+  // Navigate to ManageUserScreen
+  void navigateToManageUserScreen(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ManageUserScreen(userId: userId),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('User Dashboard')),
-      body: Padding(
+      appBar: AppBar(
+        title: const Text('User Dashboard'),
+        centerTitle: true,
+        backgroundColor: Colors.teal,
+      ),
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ElevatedButton(
-              onPressed: () => navigateToSelectChildScreen(context, 'manage'),
-              child: const Text('Manage Children'),
+            _buildDashboardCard(
+              context,
+              icon: Icons.group,
+              title: 'Manage Children',
+              subtitle: 'Add, edit, or remove children details',
+              onTap: () => navigateToSelectChildScreen(context, 'manage'),
             ),
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => navigateToSelectChildScreen(context, 'view_statistics'),
-              child: const Text('View Statistics'),
+            _buildDashboardCard(
+              context,
+              icon: Icons.bar_chart,
+              title: 'View Statistics',
+              subtitle: 'Check children’s performance stats',
+              onTap: () => navigateToSelectChildScreen(context, 'view_statistics'),
             ),
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => navigateToSelectChildScreen(context, 'view_participation'),
-              child: const Text('View Participation'),
+            _buildDashboardCard(
+              context,
+              icon: Icons.list_alt,
+              title: 'View Participation',
+              subtitle: 'See participation history',
+              onTap: () => navigateToSelectChildScreen(context, 'view_participation'),
+            ),
+            const SizedBox(height: 16),
+            _buildDashboardCard(
+              context,
+              icon: Icons.person,
+              title: 'Manage User',
+              subtitle: 'Update personal details',
+              onTap: () => navigateToManageUserScreen(context),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDashboardCard(
+      BuildContext context, {
+        required IconData icon,
+        required String title,
+        required String subtitle,
+        required VoidCallback onTap,
+      }) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: Colors.teal.withOpacity(0.2),
+                child: Icon(icon, size: 28, color: Colors.teal),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_forward_ios, size: 18, color: Colors.grey),
+            ],
+          ),
         ),
       ),
     );
