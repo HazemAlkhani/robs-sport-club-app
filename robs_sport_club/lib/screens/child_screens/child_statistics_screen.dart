@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../models/statistics.dart';
+import '../../utils/utils.dart';
 
 class ChildStatisticsScreen extends StatefulWidget {
   final bool isAdmin;
-  final int? userId; // Add userId as a field
+  final int? userId;
   final int? childId;
 
   const ChildStatisticsScreen({
     Key? key,
     required this.isAdmin,
-    this.userId, // Include userId in the constructor
+    this.userId,
     this.childId,
   }) : super(key: key);
 
@@ -37,31 +38,38 @@ class _ChildStatisticsScreenState extends State<ChildStatisticsScreen> {
 
     try {
       if (widget.isAdmin) {
-        if (widget.childId == null) {
-          // Admin fetching all statistics
-          statistics = await ApiService.fetchAllChildStatistics();
+        if (widget.childId != null) {
+          // Fetch statistics for a specific child
+          final stat = await ApiService.getChildStatistics(widget.childId!);
+          setState(() {
+            statistics = [Statistics.fromJson(stat)];
+          });
         } else {
-          // Admin fetching statistics for a specific child
-          final stat = await ApiService.fetchChildStatisticsById(widget.childId!);
-          statistics = [Statistics.fromJson(stat as Map<String, dynamic>)];
+          // Fetch all statistics for admin
+          final statsList = await ApiService.getAllStatistics();
+          setState(() {
+            statistics = statsList.map((stat) => Statistics.fromJson(stat)).toList();
+          });
         }
       } else {
-        // Parent fetching statistics for their children
-        statistics = (await ApiService.getUserStatistics())
-            .map((json) => Statistics.fromJson(json))
-            .toList();
+        // Fetch statistics for the user's children
+        final userStats = await ApiService.getUserStatistics(); // Existing backend endpoint
+        setState(() {
+          statistics = userStats.map((stat) => Statistics.fromJson(stat)).toList();
+        });
       }
     } catch (e) {
-      errorMessage = 'Failed to load statistics. Please check your connection and try again.';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMessage!)),
-      );
+      setState(() {
+        errorMessage = 'Failed to load statistics. Error: $e';
+      });
+      showError(context, 'Failed to load statistics. Error: $e');
     } finally {
       setState(() {
         isLoading = false;
       });
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -81,41 +89,35 @@ class _ChildStatisticsScreenState extends State<ChildStatisticsScreen> {
             ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: fetchStatistics,
+              onPressed: () {
+                setState(() => errorMessage = null);
+                fetchStatistics();
+              },
               child: const Text('Retry'),
             ),
           ],
         ),
       )
           : statistics.isEmpty
-          ? const Center(
-        child: Text(
-          'No statistics available at the moment. Please try again later.',
-          textAlign: TextAlign.center,
-        ),
-      )
-          : Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: ListView.builder(
-          itemCount: statistics.length,
-          itemBuilder: (context, index) {
-            final stat = statistics[index];
-            return Card(
-              elevation: 4,
-              margin: const EdgeInsets.symmetric(vertical: 8.0),
-              child: ListTile(
-                title: Text(
-                  stat.childName ?? 'N/A',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                subtitle: Text(
-                  'Training Hours: ${stat.trainingHours ?? 0}\n'
-                      'Match Hours: ${stat.matchHours ?? 0}',
-                ),
+          ? const Center(child: Text('No statistics available.'))
+          : ListView.builder(
+        itemCount: statistics.length,
+        itemBuilder: (context, index) {
+          final stat = statistics[index];
+          return Card(
+            elevation: 4,
+            margin: const EdgeInsets.symmetric(vertical: 8.0),
+            child: ListTile(
+              title: Text(
+                stat.childName,
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
-            );
-          },
-        ),
+              subtitle: Text(
+                'Training Hours: ${stat.trainingHours}\nMatch Hours: ${stat.matchHours}',
+              ),
+            ),
+          );
+        },
       ),
     );
   }

@@ -5,35 +5,38 @@ const validateRequest = require('../middleware/validateRequest');
 const { authenticateUser, isAdmin } = require('../middleware/authMiddleware');
 const rateLimiter = require('../middleware/rateLimiter');
 
-// Validation rules for child operations
+// Validation rules
 const validateChild = [
-  body('ChildName').notEmpty().withMessage('Child name is required'),
-  body('TeamNo').notEmpty().withMessage('Team number is required'),
-  body('SportType').notEmpty().withMessage('Sport type is required'),
+  body('ChildName').notEmpty().withMessage('Child name is required.'),
+  body('TeamNo').notEmpty().withMessage('Team number is required.'),
+  body('SportType').notEmpty().withMessage('Sport type is required.'),
 ];
 
 const validateChildId = [
-  param('id').isInt().withMessage('Child ID must be an integer'),
+  param('id').isInt().withMessage('Child ID must be an integer.'),
 ];
 
+// Router initialization
 const router = express.Router();
 
-// Middleware to log incoming requests
+// Logging middleware
 router.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
   next();
 });
 
-// Routes for managing children
+// Routes
+// Add a new child
 router.post(
   '/add',
   authenticateUser,
-  rateLimiter, // Protect from abuse
+  rateLimiter,
   validateChild,
   validateRequest,
   childController.addChild
 );
 
+// Fetch all children
 router.get(
   '/all',
   authenticateUser,
@@ -41,6 +44,10 @@ router.get(
   childController.getChildren
 );
 
+// Fetch children by team and sport
+router.get('/by-team-and-sport', authenticateUser, childController.getChildrenByTeamAndSport);
+
+// Update child details
 router.put(
   '/update/:id',
   authenticateUser,
@@ -51,6 +58,7 @@ router.put(
   childController.updateChild
 );
 
+// Delete a child
 router.delete(
   '/delete/:id',
   authenticateUser,

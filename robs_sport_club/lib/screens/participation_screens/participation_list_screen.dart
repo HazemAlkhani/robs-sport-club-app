@@ -16,6 +16,11 @@ class ParticipationListScreen extends StatelessWidget {
 
   Future<List<dynamic>> fetchParticipation() async {
     try {
+      // Fetch participations filtered by childId if provided
+      if (childId != null) {
+        return await ApiService.getParticipationsByChild(childId!);
+      }
+      // Fetch all participations if no childId is specified
       return await ApiService.getAllParticipations();
     } catch (e) {
       throw Exception('Failed to fetch participations: $e');
@@ -29,7 +34,8 @@ class ParticipationListScreen extends StatelessWidget {
     try {
       return DateFormat('dd-MM-yyyy').format(DateTime.parse(date));
     } catch (e) {
-      return 'N/A'; // Fallback to "N/A" if parsing fails
+      print('Error parsing date: $date');
+      return 'N/A';
     }
   }
 
@@ -38,12 +44,14 @@ class ParticipationListScreen extends StatelessWidget {
       return 'N/A';
     }
     try {
-      if (RegExp(r'^\d{2}:\d{2}$').hasMatch(time)) {
-        return time; // Time already in correct format
+      // Handle unformatted time like '1155' by inserting a colon
+      if (RegExp(r'^\d{4}$').hasMatch(time)) {
+        time = '${time.substring(0, 2)}:${time.substring(2)}';
       }
-      return DateFormat('HH:mm').format(DateTime.parse(time));
+      return time; // Assume the time is now formatted correctly
     } catch (e) {
-      return 'N/A'; // Fallback to "N/A" if parsing fails
+      print('Error parsing time: $time');
+      return 'N/A';
     }
   }
 
@@ -80,20 +88,22 @@ class ParticipationListScreen extends StatelessWidget {
             itemCount: participationList.length,
             itemBuilder: (context, index) {
               final participation = participationList[index];
+
               return Card(
                 elevation: 4,
                 margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
                 child: ListTile(
                   title: Text(
-                      '${participation['ChildName'] ?? "N/A"} - ${participation['ParticipationType'] ?? "N/A"}'),
+                    '${participation['childName'] ?? "N/A"} - ${participation['participationType'] ?? "N/A"}',
+                  ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Date: ${formatDate(participation['Date'])}'),
-                      Text('Time: ${formatTime(participation['TimeStart'])}'),
-                      Text('Duration: ${participation['Duration'] ?? "N/A"} minutes'),
-                      Text('Location: ${participation['Location'] ?? "N/A"}'),
-                      Text('Coach: ${participation['Coach'] ?? "N/A"}'),
+                      Text('Date: ${formatDate(participation['date'])}'),
+                      Text('Time: ${formatTime(participation['timeStart'])}'),
+                      Text('Duration: ${participation['duration'] ?? "N/A"} minutes'),
+                      Text('Location: ${participation['location'] ?? "N/A"}'),
+                      Text('Coach: ${participation['coach'] ?? "N/A"}'),
                     ],
                   ),
                   trailing: isAdmin

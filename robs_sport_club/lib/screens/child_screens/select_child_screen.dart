@@ -4,7 +4,6 @@ import '../participation_screens/participation_list_screen.dart';
 import '../../services/api_service.dart';
 import '../child_screens/child_statistics_screen.dart';
 
-
 class SelectChildScreen extends StatefulWidget {
   final int userId;
   final String action; // 'manage', 'view_statistics', 'view_participation'
@@ -16,7 +15,6 @@ class SelectChildScreen extends StatefulWidget {
     required this.action,
     required this.isAdmin,
   }) : super(key: key);
-
 
   @override
   _SelectChildScreenState createState() => _SelectChildScreenState();
@@ -40,13 +38,13 @@ class _SelectChildScreenState extends State<SelectChildScreen> {
     });
 
     try {
-      final result = await ApiService.getChildrenByUser(widget.userId);
+      final result = await ApiService.getAllChildren(userId: widget.isAdmin ? null : widget.userId);
       setState(() {
         children = List<Map<String, dynamic>>.from(result);
       });
     } catch (e) {
       setState(() {
-        errorMessage = 'Failed to fetch children: $e';
+        errorMessage = 'Failed to fetch children: ${e.toString()}';
       });
     } finally {
       setState(() {
@@ -64,6 +62,7 @@ class _SelectChildScreenState extends State<SelectChildScreen> {
             builder: (context) => ManageChildScreen(
               userId: widget.userId,
               childId: child['Id'],
+              childName: child['ChildName'], // Pass child name for better user feedback
             ),
           ),
         );
@@ -73,7 +72,7 @@ class _SelectChildScreenState extends State<SelectChildScreen> {
           context,
           MaterialPageRoute(
             builder: (context) => ParticipationListScreen(
-              userId: widget.userId, // Pass the user ID
+              userId: widget.userId,
               isAdmin: widget.isAdmin,
             ),
           ),
@@ -86,7 +85,7 @@ class _SelectChildScreenState extends State<SelectChildScreen> {
             builder: (context) => ChildStatisticsScreen(
               isAdmin: widget.isAdmin,
               userId: widget.userId,
-              childId: child['Id'], // Pass the child ID
+              childId: child['Id'],
             ),
           ),
         );
@@ -101,7 +100,7 @@ class _SelectChildScreenState extends State<SelectChildScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Select Child')),
+      appBar: AppBar(title: Text('Select Child (${widget.action.replaceAll("_", " ")})')),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : errorMessage != null
@@ -129,8 +128,11 @@ class _SelectChildScreenState extends State<SelectChildScreen> {
         itemBuilder: (context, index) {
           final child = children[index];
           return Card(
+            elevation: 4,
+            margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
             child: ListTile(
-              title: Text(child['ChildName']),
+              leading: Icon(Icons.child_care, color: Colors.blue),
+              title: Text(child['ChildName'] ?? 'Unnamed'),
               subtitle: Text('Team: ${child['TeamNo'] ?? 'N/A'}'),
               onTap: () => handleChildSelection(child),
             ),

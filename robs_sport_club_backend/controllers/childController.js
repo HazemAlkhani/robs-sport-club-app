@@ -86,27 +86,33 @@ exports.updateChild = async (req, res, next) => {
 exports.getChildren = async (req, res) => {
   try {
     const { role, id: userId } = req.user; // Extract role and user ID from the authenticated user
-    const { name } = req.query; // Get optional child name filter
+    const { name, userId: queryUserId } = req.query; // Get optional filters: child name and userId
 
     // Base query for fetching children
-    let query = role === 'admin'
-      ? `SELECT * FROM Children`
-      : `SELECT * FROM Children WHERE UserId = @UserId`;
+    let query = `SELECT * FROM Children`;
 
-    // Append name filter if provided
+    // Adjust query based on role and filters
+    if (role !== 'admin' || queryUserId) {
+      // Add filter by userId for non-admins or if userId is explicitly provided
+      query += ` WHERE UserId = @UserId`;
+    }
+
     if (name) {
-      query += role === 'admin'
-        ? ` WHERE ChildName LIKE '%' + @ChildName + '%'`
-        : ` AND ChildName LIKE '%' + @ChildName + '%'`;
+      // Add name filter
+      query += query.includes('WHERE')
+        ? ` AND ChildName LIKE '%' + @ChildName + '%'`
+        : ` WHERE ChildName LIKE '%' + @ChildName + '%'`;
     }
 
     const pool = await sql.connect();
     const request = pool.request();
 
-    // Add parameters for filtering
-    if (role !== 'admin') {
-      request.input('UserId', sql.Int, userId);
+    // Bind userId from the request or query (prioritize query parameter)
+    if (role !== 'admin' || queryUserId) {
+      request.input('UserId', sql.Int, queryUserId || userId);
     }
+
+    // Bind name parameter if provided
     if (name) {
       request.input('ChildName', sql.NVarChar, name);
     }
@@ -134,6 +140,39 @@ exports.getChildren = async (req, res) => {
     });
   }
 };
+
+
+
+// Fetch children by team and sport
+exports.getChildrenByTeamAndSport = async (req, res) => {
+  const { teamNo, sportType } = req.query;
+
+  if (!teamNo || !sportType) {
+    return res.status(400).json({ message: 'Team number and sport type are required' });
+  }
+
+  try {
+    const pool = await sql.connect();
+    const query = `
+      SELECT * FROM Children
+      WHERE TeamNo = @TeamNo AND SportType = @SportType
+    `;
+    const result = await pool.request()
+      .input('TeamNo', sql.NVarChar, teamNo)
+      .input('SportType', sql.NVarChar, sportType)
+      .query(query);
+
+    if (result.recordset.length === 0) {
+      return res.status(404).json({ message: 'No children found for the specified team and sport.' });
+    }
+
+    res.status(200).json({ success: true, data: result.recordset });
+  } catch (error) {
+    console.error('Error fetching children by team and sport:', error.message);
+    res.status(500).json({ message: 'Internal server error', error: error.message });
+  }
+};
+
 
 // Delete a child
 exports.deleteChild = async (req, res) => {

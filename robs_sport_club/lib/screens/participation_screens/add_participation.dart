@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../services/api_service.dart'; // Ensure ApiService has the necessary methods
-import 'confirm_participation_screen.dart'; // Import for navigation to the confirmation screen
-import '../../widgets/multi_select_dropdown.dart'; // Import for multi-select dropdown
+import '../../services/api_service.dart';
+import '../../widgets/multi_select_dropdown.dart';
 
 class AddParticipationScreen extends StatefulWidget {
   const AddParticipationScreen({Key? key}) : super(key: key);
@@ -27,7 +26,7 @@ class AddParticipationScreenState extends State<AddParticipationScreen> {
   Future<void> fetchChildren() async {
     if (selectedSportType == null || selectedTeam == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select sport type and team first.')),
+        const SnackBar(content: Text('Select sport type and team first.')),
       );
       return;
     }
@@ -41,13 +40,12 @@ class AddParticipationScreenState extends State<AddParticipationScreen> {
         selectedTeam!,
         selectedSportType!,
       );
-
       setState(() {
         childNames = children.map<String>((child) => child['ChildName'].toString()).toList();
       });
-    } catch (error) {
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to fetch children: $error')),
+        SnackBar(content: Text('Error fetching children: $e')),
       );
     } finally {
       setState(() {
@@ -56,7 +54,7 @@ class AddParticipationScreenState extends State<AddParticipationScreen> {
     }
   }
 
-  void navigateToConfirmParticipation() {
+  Future<void> submitParticipation() async {
     if (selectedChildren.isEmpty ||
         dateController.text.isEmpty ||
         timeController.text.isEmpty ||
@@ -68,7 +66,7 @@ class AddParticipationScreenState extends State<AddParticipationScreen> {
       return;
     }
 
-    final participationData = {
+    final data = {
       'children': selectedChildren,
       'participationType': participationType,
       'date': dateController.text,
@@ -77,12 +75,17 @@ class AddParticipationScreenState extends State<AddParticipationScreen> {
       'location': locationController.text,
     };
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ConfirmParticipationScreen(data: participationData),
-      ),
-    );
+    try {
+      await ApiService.addParticipation(data);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Participation added successfully')),
+      );
+      Navigator.pop(context); // Go back after success
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to add participation: $e')),
+      );
+    }
   }
 
   @override
@@ -91,7 +94,7 @@ class AddParticipationScreenState extends State<AddParticipationScreen> {
       appBar: AppBar(title: const Text('Add Participation')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
+        child: ListView(
           children: [
             DropdownButtonFormField<String>(
               value: selectedSportType,
@@ -109,7 +112,7 @@ class AddParticipationScreenState extends State<AddParticipationScreen> {
                 child: Text(sport),
               ))
                   .toList(),
-              decoration: const InputDecoration(labelText: 'Select Sport Type'),
+              decoration: const InputDecoration(labelText: 'Sport Type'),
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
@@ -126,34 +129,16 @@ class AddParticipationScreenState extends State<AddParticipationScreen> {
                 child: Text(team),
               ))
                   .toList(),
-              decoration: const InputDecoration(labelText: 'Select Team'),
+              decoration: const InputDecoration(labelText: 'Team'),
             ),
             const SizedBox(height: 16),
-            if (isLoading) const CircularProgressIndicator(),
-            if (!isLoading && childNames.isNotEmpty)
-              MultiSelectDropdown(
-                items: childNames,
-                onSelectionChanged: (selected) {
-                  setState(() {
-                    selectedChildren = selected;
-                  });
-                },
-              ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              value: participationType,
-              onChanged: (value) {
+            MultiSelectDropdown(
+              items: childNames,
+              onSelectionChanged: (selected) {
                 setState(() {
-                  participationType = value!;
+                  selectedChildren = selected;
                 });
               },
-              items: ["Match", "Training"]
-                  .map((type) => DropdownMenuItem(
-                value: type,
-                child: Text(type),
-              ))
-                  .toList(),
-              decoration: const InputDecoration(labelText: 'Participation Type'),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -189,8 +174,8 @@ class AddParticipationScreenState extends State<AddParticipationScreen> {
             ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: navigateToConfirmParticipation,
-              child: const Text('Confirm Participation'),
+              onPressed: submitParticipation,
+              child: const Text('Add Participation'),
             ),
           ],
         ),

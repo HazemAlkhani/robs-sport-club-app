@@ -27,7 +27,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       };
 
       try {
-        await ApiService.registerUser(registrationData);
+        await ApiService.register(registrationData);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Registered successfully as $role')),
         );

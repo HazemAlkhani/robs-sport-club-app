@@ -23,7 +23,15 @@ class _AddChildScreenState extends State<AddChildScreen> {
   Future<void> addChild() async {
     if (childNameController.text.isEmpty || selectedTeam == null || selectedSportType == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('All fields are required.')),
+        SnackBar(
+          content: Text(
+            childNameController.text.isEmpty
+                ? 'Child Name is required.'
+                : selectedTeam == null
+                ? 'Please select a team.'
+                : 'Please select a sport type.',
+          ),
+        ),
       );
       return;
     }
@@ -34,16 +42,25 @@ class _AddChildScreenState extends State<AddChildScreen> {
 
     try {
       await ApiService.addChild({
-        'ChildName': childNameController.text,
+        'ChildName': childNameController.text.trim(),
         'TeamNo': selectedTeam!,
         'SportType': selectedSportType!,
+        'UserId': widget.userId, // Ensure UserId is passed
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Child added successfully.')),
       );
 
-      Navigator.pop(context); // Navigate back after adding
+      // Clear inputs after successful addition
+      childNameController.clear();
+      setState(() {
+        selectedTeam = null;
+        selectedSportType = null;
+      });
+
+      // Optionally navigate back
+      Navigator.pop(context);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error adding child: $e')),
@@ -59,7 +76,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Add Child')),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
