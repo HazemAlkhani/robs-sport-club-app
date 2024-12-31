@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:robs_sport_club/screens/participation_screens/add_participation.dart';
 import 'package:robs_sport_club/screens/participation_screens/participation_table_screen.dart';
 import 'package:robs_sport_club/screens/child_screens/child_statistics_screen.dart';
+import 'package:robs_sport_club/screens/admin_screens/manage_admin_screen.dart';
 
 class AdminDashboard extends StatelessWidget {
   final int userId;
@@ -20,6 +21,23 @@ class AdminDashboard extends StatelessWidget {
         title: const Text('Admin Dashboard'),
         centerTitle: true,
         backgroundColor: Colors.blueAccent,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ManageAdminScreen(adminId: userId),
+                ),
+              ).catchError((error) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Navigation failed: $error')),
+                );
+              });
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),

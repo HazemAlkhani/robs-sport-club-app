@@ -384,7 +384,4 @@ class ApiService {
       throw Exception('Failed to update $type details: ${response.body}');
     }
   }
-
-
-
 }
